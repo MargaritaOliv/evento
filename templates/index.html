@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EVENTOESPACIO — Sistema Inteligente</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">&#x2B21;</div>
+    <div>
+      <div class="logo-title">Evento<span>Espacio</span></div>
+      <div class="logo-sub">Sistema inteligente &mdash; Algoritmos Genéticos</div>
+    </div>
+  </div>
+  <div class="status-pill" id="statusPill">IDLE</div>
+</header>
+
+<!-- ══════════════ LAYOUT ══════════════ -->
+<div class="main">
+
+  <!-- ── Sidebar de parámetros ── -->
+  <aside class="sidebar">
+
+    <div>
+      <div class="section-label">Recinto</div>
+      <div class="two-col">
+        <div class="field">
+          <label>Ancho (m)</label>
+          <input type="number" id="ancho" value="20" min="10" max="50"/>
+        </div>
+        <div class="field">
+          <label>Alto (m)</label>
+          <input type="number" id="alto" value="20" min="10" max="50"/>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Parámetros del AG</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+
+        <div class="field">
+          <label>Población |P₀|</label>
+          <input type="number" id="tam_poblacion" value="10" min="4" max="100"/>
+        </div>
+
+        <div class="field">
+          <label>Generaciones</label>
+          <input type="number" id="generaciones" value="200" min="10" max="1000"/>
+        </div>
+
+        <div class="field">
+          <div class="range-row">
+            <label>P cruza</label>
+            <span class="range-val" id="val_pcruza">0.70</span>
+          </div>
+          <input type="range" id="p_cruza" min="0" max="1" step="0.01" value="0.70"
+                 oninput="document.getElementById('val_pcruza').textContent=parseFloat(this.value).toFixed(2)"/>
+        </div>
+
+        <div class="field">
+          <div class="range-row">
+            <label>P mut individuo</label>
+            <span class="range-val" id="val_pmuti">0.30</span>
+          </div>
+          <input type="range" id="p_mut_ind" min="0" max="1" step="0.01" value="0.30"
+                 oninput="document.getElementById('val_pmuti').textContent=parseFloat(this.value).toFixed(2)"/>
+        </div>
+
+        <div class="field">
+          <div class="range-row">
+            <label>P mut gen</label>
+            <span class="range-val" id="val_pmutg">0.25</span>
+          </div>
+          <input type="range" id="p_mut_gen" min="0" max="1" step="0.01" value="0.25"
+                 oninput="document.getElementById('val_pmutg').textContent=parseFloat(this.value).toFixed(2)"/>
+        </div>
+
+      </div>
+    </div>
+
+    <div>
+      <button class="btn-run" id="btnRun" onclick="ejecutar()">&#9654;&nbsp; Ejecutar AG</button>
+      <div class="spinner" id="spinner"></div>
+    </div>
+
+  </aside>
+
+  <!-- ── Panel de resultados ── -->
+  <section class="results">
+
+    <!-- Métricas -->
+    <div class="metrics">
+      <div class="metric-card" id="mc-apt">
+        <div class="mc-label">Aptitud final</div>
+        <div class="mc-val highlight" id="val-apt">&#8212;</div>
+      </div>
+      <div class="metric-card" id="mc-o1">
+        <div class="mc-label">O1 Distribución</div>
+        <div class="mc-val" id="val-o1">&#8212;</div>
+      </div>
+      <div class="metric-card" id="mc-o2">
+        <div class="mc-label">O2 Flujo</div>
+        <div class="mc-val" id="val-o2">&#8212;</div>
+      </div>
+      <div class="metric-card" id="mc-o3">
+        <div class="mc-label">O3 Conectividad</div>
+        <div class="mc-val" id="val-o3">&#8212;</div>
+      </div>
+      <div class="metric-card" id="mc-o4">
+        <div class="mc-label">O4 Prioridad</div>
+        <div class="mc-val" id="val-o4">&#8212;</div>
+      </div>
+    </div>
+
+    <!-- Gráfica + Mapa -->
+    <div class="bottom-grid">
+
+      <div class="chart-box" id="chartBox">
+        <div class="box-title">Evolución del Fitness</div>
+        <div class="placeholder" id="phChart">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          Ejecuta el AG para ver la evolución
+        </div>
+        <canvas id="fitnessChart" style="display:none"></canvas>
+      </div>
+
+      <div class="map-box" id="mapBox">
+        <div class="box-title">Mapa del Recinto</div>
+        <div class="placeholder" id="phMapa">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+          Ejecuta el AG para ver el mapa
+        </div>
+        <canvas id="mapaCanvas" style="display:none"></canvas>
+        <div class="leyenda" id="leyenda" style="display:none"></div>
+      </div>
+
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-box" id="tableBox">
+      <div class="box-title">Tabla de Distribución — Mejor Individuo</div>
+      <div class="placeholder" id="phTabla">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="1"/>
+        </svg>
+        Ejecuta el AG para ver los resultados
+      </div>
+      <div id="tablaWrap" style="display:none;overflow-x:auto"></div>
+    </div>
+
+  </section>
+</div>
+
+<!-- ══════════════ JAVASCRIPT ══════════════ -->
+<script>
+const COLORES = {
+  escenario:        '#a855f7',
+  stand:            '#67e8f9',
+  'baño':           '#34d399',
+  salida:           '#fbbf24',
+  zona_comida:      '#f472b6',
+  primeros_auxilios:'#fb923c'
+};
+
+let chartInstance = null;
+
+async function ejecutar() {
+  const btn    = document.getElementById('btnRun');
+  const spinner= document.getElementById('spinner');
+  const pill   = document.getElementById('statusPill');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  pill.className = 'status-pill running';
+  pill.textContent = 'RUNNING';
+
+  const params = {
+    ancho:          parseInt(document.getElementById('ancho').value),
+    alto:           parseInt(document.getElementById('alto').value),
+    tam_poblacion:  parseInt(document.getElementById('tam_poblacion').value),
+    generaciones:   parseInt(document.getElementById('generaciones').value),
+    p_cruza:       parseFloat(document.getElementById('p_cruza').value),
+    p_mut_ind:     parseFloat(document.getElementById('p_mut_ind').value),
+    p_mut_gen:     parseFloat(document.getElementById('p_mut_gen').value)
+  };
+
+  try {
+    const res  = await fetch('/ejecutar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    const data = await res.json();
+    mostrarResultados(data);
+    pill.className  = 'status-pill done';
+    pill.textContent = 'DONE';
+  } catch(e) {
+    pill.className  = 'status-pill';
+    pill.textContent = 'ERROR';
+    alert('Error al conectar con Flask. Asegúrate de correr app.py');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+function mostrarResultados(d) {
+  const keys = ['aptitud', 'O1', 'O2', 'O3', 'O4'];
+  const ids  = ['apt', 'o1', 'o2', 'o3', 'o4'];
+
+  ids.forEach((k, i) => {
+    const card = document.getElementById('mc-' + k);
+    const val  = document.getElementById('val-' + k);
+    val.textContent = d[keys[i]];
+    val.className   = k === 'apt' ? 'mc-val highlight'
+                    : (d[keys[i]] >= 0.6 ? 'mc-val good' : 'mc-val');
+    setTimeout(() => card.classList.add('show'), i * 80);
+  });
+
+  setTimeout(() => {
+    document.getElementById('phChart').style.display = 'none';
+    document.getElementById('fitnessChart').style.display = 'block';
+    document.getElementById('chartBox').classList.add('show');
+    renderChart(d.hist_mejor, d.hist_promedio);
+  }, 200);
+
+  setTimeout(() => {
+    document.getElementById('phMapa').style.display = 'none';
+    document.getElementById('mapaCanvas').style.display = 'block';
+    document.getElementById('leyenda').style.display = 'flex';
+    document.getElementById('mapBox').classList.add('show');
+    renderMapa(d.tabla, d.restricciones, d.ancho, d.alto);
+  }, 400);
+
+  setTimeout(() => {
+    document.getElementById('phTabla').style.display = 'none';
+    document.getElementById('tablaWrap').style.display = 'block';
+    document.getElementById('tableBox').classList.add('show');
+    renderTabla(d.tabla);
+  }, 600);
+}
+
+function renderChart(mejor, promedio) {
+  const ctx = document.getElementById('fitnessChart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mejor.map((_, i) => i),
+      datasets: [
+        {
+          label: 'Mejor aptitud',
+          data: mejor,
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.07)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Aptitud promedio',
+          data: promedio,
+          borderColor: '#ec4899',
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 700 },
+      scales: {
+        x: {
+          ticks: { color: '#6b5f8a', maxTicksLimit: 10, font: { family: 'DM Mono', size: 10 } },
+          grid:  { color: '#2a2245' },
+          title: { display: true, text: 'Generación', color: '#6b5f8a' }
+        },
+        y: {
+          min: 0, max: 1,
+          ticks: { color: '#6b5f8a', font: { family: 'DM Mono', size: 10 } },
+          grid:  { color: '#2a2245' },
+          title: { display: true, text: 'Aptitud', color: '#6b5f8a' }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#e2d9f3', font: { family: 'Syne', size: 12 }, boxWidth: 12, padding: 16 }
+        },
+        tooltip: {
+          backgroundColor: '#13101f',
+          borderColor: '#2a2245',
+          borderWidth: 1,
+          titleColor: '#a855f7',
+          bodyColor: '#e2d9f3'
+        }
+      }
+    }
+  });
+}
+
+function renderMapa(tabla, restricciones, W, H) {
+  const canvas = document.getElementById('mapaCanvas');
+  const CELL   = Math.floor(Math.min(480, canvas.offsetWidth || 480) / Math.max(W, H));
+  canvas.width  = W * CELL;
+  canvas.height = H * CELL;
+
+  const ctx = canvas.getContext('2d');
+
+  // Fondo
+  ctx.fillStyle = '#0d0b14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = '#2a2245';
+  ctx.lineWidth   = 0.5;
+  for (let i = 0; i <= W; i++) {
+    ctx.beginPath(); ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, H*CELL); ctx.stroke();
+  }
+  for (let j = 0; j <= H; j++) {
+    ctx.beginPath(); ctx.moveTo(0, j*CELL); ctx.lineTo(W*CELL, j*CELL); ctx.stroke();
+  }
+
+  // Zonas restringidas
+  restricciones.filter(r => r.tipo === 'zona_restringida').forEach(r => {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(r.x*CELL, r.y*CELL, CELL, CELL);
+    ctx.fillStyle = '#4a3f6b';
+    ctx.font = `bold ${Math.max(8, CELL*0.5)}px DM Mono`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✕', r.x*CELL + CELL/2, r.y*CELL + CELL/2);
+  });
+
+  // Entradas
+  restricciones.filter(r => r.tipo === 'entrada').forEach(r => {
+    ctx.fillStyle   = 'rgba(103,232,249,0.15)';
+    ctx.fillRect(r.x*CELL, r.y*CELL, CELL, CELL);
+    ctx.strokeStyle = '#67e8f9';
+    ctx.lineWidth   = 1.5;
+    ctx.strokeRect(r.x*CELL, r.y*CELL, CELL, CELL);
+    ctx.fillStyle   = '#67e8f9';
+    ctx.font        = `bold ${Math.max(6, CELL*0.3)}px Syne`;
+    ctx.textAlign   = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('ENT', r.x*CELL + CELL/2, r.y*CELL + CELL/2);
+  });
+
+  // Elementos
+  tabla.forEach(e => {
+    const color = COLORES[e.tipo] || '#a855f7';
+    const px = e.x*CELL, py = e.y*CELL, pw = e.ancho*CELL, ph = e.alto*CELL, pad = 2;
+
+    ctx.fillStyle   = color + '28';
+    ctx.fillRect(px+pad, py+pad, pw-pad*2, ph-pad*2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 1.5;
+    ctx.strokeRect(px+pad, py+pad, pw-pad*2, ph-pad*2);
+
+    ctx.fillStyle    = '#fff';
+    ctx.font         = `bold ${Math.max(8, CELL*0.5)}px DM Mono`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(e.id, px + pw/2, py + ph/2);
+  });
+
+  // Leyenda
+  const leyenda = document.getElementById('leyenda');
+  const tipos   = [...new Set(tabla.map(e => e.tipo))];
+  leyenda.innerHTML =
+    tipos.map(t =>
+      `<div class="leg-item">
+         <div class="leg-dot" style="background:${COLORES[t] || '#a855f7'}"></div>
+         ${t.replace('_', ' ')}
+       </div>`
+    ).join('') +
+    `<div class="leg-item">
+       <div class="leg-dot" style="background:#67e8f9"></div>
+       Entrada
+     </div>`;
+}
+
+function renderTabla(tabla) {
+  document.getElementById('tablaWrap').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Tipo</th><th>Prioridad</th>
+          <th>X</th><th>Y</th><th>Ancho</th><th>Alto</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tabla.map(e => `
+          <tr>
+            <td>${e.id}</td>
+            <td>${e.tipo.replace('_',' ')}</td>
+            <td><span class="badge ${e.prioridad}">${e.prioridad}</span></td>
+            <td>${e.x}</td><td>${e.y}</td>
+            <td>${e.ancho}</td><td>${e.alto}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+</script>
+
+</body>
+</html>

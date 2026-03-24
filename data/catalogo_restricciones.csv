@@ -1,0 +1,7 @@
+id,tipo,x,y,descripcion
+1,entrada,0,10,Entrada principal norte
+2,entrada,20,10,Entrada secundaria sur
+3,zona_restringida,5,5,Columna estructural
+4,zona_restringida,15,5,Columna estructural
+5,zona_restringida,5,15,Columna estructural
+6,zona_restringida,15,15,Columna estructural
