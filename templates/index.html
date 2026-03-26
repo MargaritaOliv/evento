@@ -6,6 +6,117 @@
   <title>EVENTOESPACIO — Sistema Inteligente</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* ── Dataset selector ── */
+    .dataset-buttons {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .ds-btn {
+      flex: 1;
+      padding: 7px 4px;
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all .2s;
+    }
+    .ds-btn:hover, .ds-btn.active {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 10px rgba(103,232,249,.25);
+    }
+    .ds-btn.active { background: rgba(103,232,249,.07); }
+
+    .upload-pair {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .upload-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .upload-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .upload-input {
+      background: var(--bg);
+      border: 1px dashed var(--border2);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      width: 100%;
+      transition: border-color .2s;
+    }
+    .upload-input:hover { border-color: var(--cyan); }
+
+    /* ── Top-3 mapas ── */
+    .top3-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: var(--radius);
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity .5s, transform .5s;
+      grid-column: 1 / -1;
+    }
+    .top3-box.show { opacity: 1; transform: translateY(0); }
+
+    .top3-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .top3-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .top3-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .top3-rank {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--purple);
+      letter-spacing: 2px;
+    }
+    .top3-apt {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--cyan);
+    }
+    .top3-canvas {
+      display: block;
+      width: 100%;
+      image-rendering: pixelated;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+  </style>
 </head>
 <body>
 
@@ -27,20 +138,55 @@
   <!-- ── Sidebar de parámetros ── -->
   <aside class="sidebar">
 
+    <!-- Dataset -->
+    <div>
+      <div class="section-label">Dataset</div>
+
+      <div class="dataset-buttons">
+        <button class="ds-btn" id="dsSmall"  onclick="cargarPreset('pequeno')">Pequeño</button>
+        <button class="ds-btn" id="dsMedium" onclick="cargarPreset('mediano')">Mediano</button>
+        <button class="ds-btn" id="dsLarge"  onclick="cargarPreset('grande')">Grande</button>
+      </div>
+
+      <div class="upload-pair">
+        <div class="upload-row">
+          <span class="upload-label">Elementos CSV</span>
+          <input type="file" id="file_elementos" accept=".csv" class="upload-input"
+                 onchange="marcarPersonalizado()"/>
+        </div>
+        <div class="upload-row">
+          <span class="upload-label">Restricciones CSV</span>
+          <input type="file" id="file_restricciones" accept=".csv" class="upload-input"
+                 onchange="marcarPersonalizado()"/>
+        </div>
+      </div>
+
+      <div id="datasetTag" style="
+        margin-top:8px;
+        font-family:var(--font-mono);
+        font-size:10px;
+        color:var(--muted);
+        letter-spacing:1.5px;
+        min-height:16px;
+      "></div>
+    </div>
+
+    <!-- Recinto -->
     <div>
       <div class="section-label">Recinto</div>
       <div class="two-col">
         <div class="field">
           <label>Ancho (m)</label>
-          <input type="number" id="ancho" value="20" min="10" max="50"/>
+          <input type="number" id="ancho" value="20" min="10" max="100"/>
         </div>
         <div class="field">
           <label>Alto (m)</label>
-          <input type="number" id="alto" value="20" min="10" max="50"/>
+          <input type="number" id="alto" value="20" min="10" max="100"/>
         </div>
       </div>
     </div>
 
+    <!-- Parámetros AG -->
     <div>
       <div class="section-label">Parámetros del AG</div>
       <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
@@ -119,7 +265,7 @@
       </div>
     </div>
 
-    <!-- Gráfica + Mapa -->
+    <!-- Gráfica + Mapa del mejor -->
     <div class="bottom-grid">
 
       <div class="chart-box" id="chartBox">
@@ -134,7 +280,7 @@
       </div>
 
       <div class="map-box" id="mapBox">
-        <div class="box-title">Mapa del Recinto</div>
+        <div class="box-title">Mapa del Recinto — #1 Mejor</div>
         <div class="placeholder" id="phMapa">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -146,6 +292,18 @@
         <div class="leyenda" id="leyenda" style="display:none"></div>
       </div>
 
+    </div>
+
+    <!-- TOP 3 mapas -->
+    <div class="top3-box" id="top3Box">
+      <div class="box-title">Top 3 Mejores Distribuciones</div>
+      <div class="placeholder" id="phTop3">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        Ejecuta el AG para ver el ranking
+      </div>
+      <div class="top3-grid" id="top3Grid" style="display:none"></div>
     </div>
 
     <!-- Tabla -->
@@ -167,16 +325,62 @@
 <!-- ══════════════ JAVASCRIPT ══════════════ -->
 <script>
 const COLORES = {
-  escenario:        '#a855f7',
-  stand:            '#67e8f9',
-  'baño':           '#34d399',
-  salida:           '#fbbf24',
-  zona_comida:      '#f472b6',
-  primeros_auxilios:'#fb923c'
+  escenario:         '#a855f7',
+  stand:             '#67e8f9',
+  'baño':            '#34d399',
+  salida:            '#fbbf24',
+  zona_comida:       '#f472b6',
+  primeros_auxilios: '#fb923c',
+  estacionamiento:   '#94a3b8',
+  zona_vip:          '#f59e0b',
+  bodega:            '#6b7280'
 };
 
-let chartInstance = null;
+let chartInstance   = null;
+let presetActivo    = null;   // 'pequeno' | 'mediano' | 'grande' | null
 
+/* ──────────────────────────────────────────
+   DATASET: presets y carga personalizada
+────────────────────────────────────────── */
+const PRESET_SIZES = {
+  pequeno: { ancho: 15, alto: 15 },
+  mediano: { ancho: 30, alto: 30 },
+  grande:  { ancho: 50, alto: 50 }
+};
+
+function cargarPreset(tamaño) {
+  presetActivo = tamaño;
+
+  // Marca el botón activo
+  ['dsSmall','dsMedium','dsLarge'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  const map = { pequeno:'dsSmall', mediano:'dsMedium', grande:'dsLarge' };
+  document.getElementById(map[tamaño]).classList.add('active');
+
+  // Limpia uploads manuales
+  document.getElementById('file_elementos').value    = '';
+  document.getElementById('file_restricciones').value = '';
+
+  // Ajusta dimensiones sugeridas
+  const s = PRESET_SIZES[tamaño];
+  document.getElementById('ancho').value = s.ancho;
+  document.getElementById('alto').value  = s.alto;
+
+  document.getElementById('datasetTag').textContent =
+    `PRESET: ${tamaño.toUpperCase()} cargado`;
+}
+
+function marcarPersonalizado() {
+  presetActivo = null;
+  ['dsSmall','dsMedium','dsLarge'].forEach(id =>
+    document.getElementById(id).classList.remove('active'));
+  document.getElementById('datasetTag').textContent = 'CSV PERSONALIZADO';
+}
+
+/* ──────────────────────────────────────────
+   EJECUTAR AG
+────────────────────────────────────────── */
 async function ejecutar() {
   const btn    = document.getElementById('btnRun');
   const spinner= document.getElementById('spinner');
@@ -184,31 +388,38 @@ async function ejecutar() {
 
   btn.disabled = true;
   spinner.style.display = 'block';
-  pill.className = 'status-pill running';
+  pill.className  = 'status-pill running';
   pill.textContent = 'RUNNING';
 
-  const params = {
-    ancho:          parseInt(document.getElementById('ancho').value),
-    alto:           parseInt(document.getElementById('alto').value),
-    tam_poblacion:  parseInt(document.getElementById('tam_poblacion').value),
-    generaciones:   parseInt(document.getElementById('generaciones').value),
-    p_cruza:       parseFloat(document.getElementById('p_cruza').value),
-    p_mut_ind:     parseFloat(document.getElementById('p_mut_ind').value),
-    p_mut_gen:     parseFloat(document.getElementById('p_mut_gen').value)
-  };
+  // Construye FormData (multipart para soportar archivos)
+  const fd = new FormData();
+  fd.append('ancho',         document.getElementById('ancho').value);
+  fd.append('alto',          document.getElementById('alto').value);
+  fd.append('tam_poblacion', document.getElementById('tam_poblacion').value);
+  fd.append('generaciones',  document.getElementById('generaciones').value);
+  fd.append('p_cruza',       document.getElementById('p_cruza').value);
+  fd.append('p_mut_ind',     document.getElementById('p_mut_ind').value);
+  fd.append('p_mut_gen',     document.getElementById('p_mut_gen').value);
+
+  if (presetActivo) {
+    // Informa al backend qué preset usar
+    fd.append('preset', presetActivo);
+  } else {
+    // Archivos manuales
+    const fe = document.getElementById('file_elementos').files[0];
+    const fr = document.getElementById('file_restricciones').files[0];
+    if (fe) fd.append('elementos_csv',    fe);
+    if (fr) fd.append('restricciones_csv', fr);
+  }
 
   try {
-    const res  = await fetch('/ejecutar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    });
+    const res  = await fetch('/ejecutar', { method: 'POST', body: fd });
     const data = await res.json();
     mostrarResultados(data);
-    pill.className  = 'status-pill done';
+    pill.className   = 'status-pill done';
     pill.textContent = 'DONE';
   } catch(e) {
-    pill.className  = 'status-pill';
+    pill.className   = 'status-pill';
     pill.textContent = 'ERROR';
     alert('Error al conectar con Flask. Asegúrate de correr app.py');
   } finally {
@@ -217,10 +428,13 @@ async function ejecutar() {
   }
 }
 
+/* ──────────────────────────────────────────
+   MOSTRAR RESULTADOS
+────────────────────────────────────────── */
 function mostrarResultados(d) {
+  // Métricas
   const keys = ['aptitud', 'O1', 'O2', 'O3', 'O4'];
   const ids  = ['apt', 'o1', 'o2', 'o3', 'o4'];
-
   ids.forEach((k, i) => {
     const card = document.getElementById('mc-' + k);
     const val  = document.getElementById('val-' + k);
@@ -230,30 +444,44 @@ function mostrarResultados(d) {
     setTimeout(() => card.classList.add('show'), i * 80);
   });
 
+  // Gráfica con 3 líneas
   setTimeout(() => {
-    document.getElementById('phChart').style.display = 'none';
+    document.getElementById('phChart').style.display  = 'none';
     document.getElementById('fitnessChart').style.display = 'block';
     document.getElementById('chartBox').classList.add('show');
-    renderChart(d.hist_mejor, d.hist_promedio);
+    renderChart(d.hist_mejor, d.hist_promedio, d.hist_peor);
   }, 200);
 
+  // Mapa principal (mejor)
   setTimeout(() => {
-    document.getElementById('phMapa').style.display = 'none';
+    document.getElementById('phMapa').style.display   = 'none';
     document.getElementById('mapaCanvas').style.display = 'block';
-    document.getElementById('leyenda').style.display = 'flex';
+    document.getElementById('leyenda').style.display  = 'flex';
     document.getElementById('mapBox').classList.add('show');
-    renderMapa(d.tabla, d.restricciones, d.ancho, d.alto);
+    renderMapa(d.tabla, d.restricciones, d.ancho, d.alto, 'mapaCanvas');
   }, 400);
 
+  // Top 3 mapas
+  setTimeout(() => {
+    document.getElementById('phTop3').style.display = 'none';
+    document.getElementById('top3Grid').style.display = 'grid';
+    document.getElementById('top3Box').classList.add('show');
+    renderTop3(d.top3, d.restricciones, d.ancho, d.alto);
+  }, 600);
+
+  // Tabla
   setTimeout(() => {
     document.getElementById('phTabla').style.display = 'none';
     document.getElementById('tablaWrap').style.display = 'block';
     document.getElementById('tableBox').classList.add('show');
     renderTabla(d.tabla);
-  }, 600);
+  }, 800);
 }
 
-function renderChart(mejor, promedio) {
+/* ──────────────────────────────────────────
+   GRÁFICA CON 3 LÍNEAS: mejor / promedio / peor
+────────────────────────────────────────── */
+function renderChart(mejor, promedio, peor) {
   const ctx = document.getElementById('fitnessChart').getContext('2d');
   if (chartInstance) chartInstance.destroy();
 
@@ -278,6 +506,16 @@ function renderChart(mejor, promedio) {
           borderColor: '#ec4899',
           borderWidth: 1.5,
           borderDash: [4, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Peor aptitud',
+          data: peor,
+          borderColor: '#f97316',
+          borderWidth: 1.5,
+          borderDash: [2, 3],
           pointRadius: 0,
           fill: false,
           tension: 0.3
@@ -316,9 +554,13 @@ function renderChart(mejor, promedio) {
   });
 }
 
-function renderMapa(tabla, restricciones, W, H) {
-  const canvas = document.getElementById('mapaCanvas');
-  const CELL   = Math.floor(Math.min(480, canvas.offsetWidth || 480) / Math.max(W, H));
+/* ──────────────────────────────────────────
+   RENDER MAPA (genérico, recibe id del canvas)
+────────────────────────────────────────── */
+function renderMapa(tabla, restricciones, W, H, canvasId) {
+  const canvas = document.getElementById(canvasId);
+  const maxPx  = canvasId === 'mapaCanvas' ? 480 : 220;
+  const CELL   = Math.max(4, Math.floor(maxPx / Math.max(W, H)));
   canvas.width  = W * CELL;
   canvas.height = H * CELL;
 
@@ -343,7 +585,7 @@ function renderMapa(tabla, restricciones, W, H) {
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.fillRect(r.x*CELL, r.y*CELL, CELL, CELL);
     ctx.fillStyle = '#4a3f6b';
-    ctx.font = `bold ${Math.max(8, CELL*0.5)}px DM Mono`;
+    ctx.font = `bold ${Math.max(6, CELL*0.5)}px DM Mono`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('✕', r.x*CELL + CELL/2, r.y*CELL + CELL/2);
   });
@@ -355,46 +597,82 @@ function renderMapa(tabla, restricciones, W, H) {
     ctx.strokeStyle = '#67e8f9';
     ctx.lineWidth   = 1.5;
     ctx.strokeRect(r.x*CELL, r.y*CELL, CELL, CELL);
-    ctx.fillStyle   = '#67e8f9';
-    ctx.font        = `bold ${Math.max(6, CELL*0.3)}px Syne`;
-    ctx.textAlign   = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('ENT', r.x*CELL + CELL/2, r.y*CELL + CELL/2);
+    if (CELL >= 14) {
+      ctx.fillStyle = '#67e8f9';
+      ctx.font = `bold ${Math.max(5, CELL*0.28)}px Syne`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('ENT', r.x*CELL + CELL/2, r.y*CELL + CELL/2);
+    }
   });
 
   // Elementos
   tabla.forEach(e => {
     const color = COLORES[e.tipo] || '#a855f7';
     const px = e.x*CELL, py = e.y*CELL, pw = e.ancho*CELL, ph = e.alto*CELL, pad = 2;
-
     ctx.fillStyle   = color + '28';
     ctx.fillRect(px+pad, py+pad, pw-pad*2, ph-pad*2);
     ctx.strokeStyle = color;
     ctx.lineWidth   = 1.5;
     ctx.strokeRect(px+pad, py+pad, pw-pad*2, ph-pad*2);
-
-    ctx.fillStyle    = '#fff';
-    ctx.font         = `bold ${Math.max(8, CELL*0.5)}px DM Mono`;
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(e.id, px + pw/2, py + ph/2);
+    if (CELL >= 8) {
+      ctx.fillStyle    = '#fff';
+      ctx.font         = `bold ${Math.max(6, CELL*0.45)}px DM Mono`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(e.id, px + pw/2, py + ph/2);
+    }
   });
 
-  // Leyenda
-  const leyenda = document.getElementById('leyenda');
-  const tipos   = [...new Set(tabla.map(e => e.tipo))];
-  leyenda.innerHTML =
-    tipos.map(t =>
+  // Leyenda (solo para mapa principal)
+  if (canvasId === 'mapaCanvas') {
+    const leyenda = document.getElementById('leyenda');
+    const tipos   = [...new Set(tabla.map(e => e.tipo))];
+    leyenda.innerHTML =
+      tipos.map(t =>
+        `<div class="leg-item">
+           <div class="leg-dot" style="background:${COLORES[t]||'#a855f7'}"></div>
+           ${t.replace(/_/g,' ')}
+         </div>`
+      ).join('') +
       `<div class="leg-item">
-         <div class="leg-dot" style="background:${COLORES[t] || '#a855f7'}"></div>
-         ${t.replace('_', ' ')}
-       </div>`
-    ).join('') +
-    `<div class="leg-item">
-       <div class="leg-dot" style="background:#67e8f9"></div>
-       Entrada
-     </div>`;
+         <div class="leg-dot" style="background:#67e8f9"></div>
+         Entrada
+       </div>`;
+  }
 }
 
+/* ──────────────────────────────────────────
+   TOP 3 MAPAS
+────────────────────────────────────────── */
+function renderTop3(top3, restricciones, W, H) {
+  const grid = document.getElementById('top3Grid');
+  grid.innerHTML = '';
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  top3.forEach((entry, idx) => {
+    const canvasId = `top3canvas_${idx}`;
+    const card = document.createElement('div');
+    card.className = 'top3-card';
+    card.innerHTML = `
+      <div class="top3-header">
+        <span class="top3-rank">${medals[idx]} RANK #${entry.rank}</span>
+        <span class="top3-apt">apt: ${entry.aptitud}</span>
+      </div>
+      <canvas id="${canvasId}" class="top3-canvas"></canvas>
+    `;
+    grid.appendChild(card);
+
+    // Renderiza el canvas después de añadirlo al DOM
+    requestAnimationFrame(() => {
+      renderMapa(entry.tabla, restricciones, W, H, canvasId);
+    });
+  });
+}
+
+/* ──────────────────────────────────────────
+   TABLA
+────────────────────────────────────────── */
 function renderTabla(tabla) {
   document.getElementById('tablaWrap').innerHTML = `
     <table>
@@ -408,7 +686,7 @@ function renderTabla(tabla) {
         ${tabla.map(e => `
           <tr>
             <td>${e.id}</td>
-            <td>${e.tipo.replace('_',' ')}</td>
+            <td>${e.tipo.replace(/_/g,' ')}</td>
             <td><span class="badge ${e.prioridad}">${e.prioridad}</span></td>
             <td>${e.x}</td><td>${e.y}</td>
             <td>${e.ancho}</td><td>${e.alto}</td>
