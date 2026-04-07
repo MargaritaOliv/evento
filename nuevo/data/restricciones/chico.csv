@@ -1,0 +1,13 @@
+id,tipo,x1,y1,x2,y2,descripcion
+1,entrada,0,17,0,23,Entrada Principal Oeste
+2,entrada,23,0,27,0,Entrada Norte
+3,salida,49,17,49,23,Salida Principal Este
+4,salida,10,39,15,39,Salida Emergencia Sur 1
+5,salida,35,39,40,39,Salida Emergencia Sur 2
+6,zona_restringida,20,15,26,25,Zona Tecnica Central
+7,zona_restringida,0,0,3,3,Cuarto Electrico NW
+8,zona_restringida,47,0,50,3,Bodega NE
+9,columna,10,10,12,12,Columna Estructural A
+10,columna,38,10,40,12,Columna Estructural B
+11,columna,10,28,12,30,Columna Estructural C
+12,columna,38,28,40,30,Columna Estructural D

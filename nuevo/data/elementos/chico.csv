@@ -1,0 +1,19 @@
+id,nombre,tipo,ancho,alto,prioridad,requires_access
+1,Escenario Principal,escenario,8,6,5,True
+2,Escenario Secundario,escenario,5,4,4,True
+3,Stand Comida 1,stand_comida,3,2,3,False
+4,Stand Comida 2,stand_comida,3,2,3,False
+5,Stand Comida 3,stand_comida,3,2,3,False
+6,Stand Artesanias 1,stand_artesania,2,2,2,False
+7,Stand Artesanias 2,stand_artesania,2,2,2,False
+8,Stand Artesanias 3,stand_artesania,2,2,2,False
+9,Baños Zona Norte,servicio,3,2,5,True
+10,Baños Zona Sur,servicio,3,2,5,True
+11,Primeros Auxilios,servicio,3,2,5,True
+12,Area VIP,zona_especial,6,4,4,True
+13,Zona Descanso 1,zona_descanso,4,3,2,False
+14,Zona Descanso 2,zona_descanso,4,3,2,False
+15,Taquilla,servicio,2,2,4,True
+16,Punto Informacion,servicio,2,2,3,True
+17,Stand Bebidas,stand_comida,2,2,3,False
+18,Stand Merchandising,stand_artesania,3,2,2,False

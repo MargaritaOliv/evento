@@ -1,0 +1,32 @@
+
+id,nombre,tipo,ancho,alto,prioridad,requires_access
+1,Escenario Principal,escenario,10,7,5,True
+2,Escenario Secundario,escenario,7,5,4,True
+3,Escenario Acustico,escenario,6,4,3,True
+4,Stand Comida 1,stand_comida,4,3,3,False
+5,Stand Comida 2,stand_comida,4,3,3,False
+6,Stand Comida 3,stand_comida,4,3,3,False
+7,Stand Comida 4,stand_comida,3,3,2,False
+8,Stand Comida 5,stand_comida,3,3,2,False
+9,Stand Artesanias 1,stand_artesania,3,2,2,False
+10,Stand Artesanias 2,stand_artesania,3,2,2,False
+11,Stand Artesanias 3,stand_artesania,3,2,2,False
+12,Stand Artesanias 4,stand_artesania,3,2,2,False
+13,Baños Zona Norte,servicio,4,2,5,True
+14,Baños Zona Sur,servicio,4,2,5,True
+15,Baños Zona Centro,servicio,4,2,5,True
+16,Primeros Auxilios Norte,servicio,4,3,5,True
+17,Primeros Auxilios Sur,servicio,4,3,5,True
+18,Area VIP,zona_especial,8,5,4,True
+19,Area VIP 2,zona_especial,6,4,3,True
+20,Zona Descanso 1,zona_descanso,5,4,2,False
+21,Zona Descanso 2,zona_descanso,5,4,2,False
+22,Zona Descanso 3,zona_descanso,5,4,2,False
+23,Taquilla Principal,servicio,3,2,5,True
+24,Taquilla Secundaria,servicio,3,2,4,True
+25,Punto Informacion 1,servicio,2,2,3,True
+26,Punto Informacion 2,servicio,2,2,3,True
+27,Stand Bebidas 1,stand_comida,3,2,3,False
+28,Stand Bebidas 2,stand_comida,3,2,3,False
+29,Stand Merchandising 1,stand_artesania,4,3,2,False
+30,Stand Merchandising 2,stand_artesania,4,3,2,False

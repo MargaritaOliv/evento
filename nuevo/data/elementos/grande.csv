@@ -1,0 +1,47 @@
+//
+id,nombre,tipo,ancho,alto,prioridad,requires_access
+1,Escenario Principal,escenario,14,10,5,True
+2,Escenario Secundario,escenario,10,7,4,True
+3,Escenario Acustico,escenario,8,6,4,True
+4,Escenario Infantil,escenario,7,5,3,True
+5,Stand Comida 1,stand_comida,5,3,3,False
+6,Stand Comida 2,stand_comida,5,3,3,False
+7,Stand Comida 3,stand_comida,5,3,3,False
+8,Stand Comida 4,stand_comida,4,3,3,False
+9,Stand Comida 5,stand_comida,4,3,3,False
+10,Stand Comida 6,stand_comida,4,3,2,False
+11,Stand Comida 7,stand_comida,4,3,2,False
+12,Stand Artesanias 1,stand_artesania,3,3,2,False
+13,Stand Artesanias 2,stand_artesania,3,3,2,False
+14,Stand Artesanias 3,stand_artesania,3,3,2,False
+15,Stand Artesanias 4,stand_artesania,3,3,2,False
+16,Stand Artesanias 5,stand_artesania,3,3,2,False
+17,Baños Zona Norte,servicio,5,3,5,True
+18,Baños Zona Sur,servicio,5,3,5,True
+19,Baños Zona Este,servicio,5,3,5,True
+20,Baños Zona Oeste,servicio,5,3,5,True
+21,Baños VIP,servicio,4,3,4,True
+22,Primeros Auxilios Norte,servicio,5,4,5,True
+23,Primeros Auxilios Sur,servicio,5,4,5,True
+24,Primeros Auxilios Centro,servicio,5,4,5,True
+25,Area VIP Principal,zona_especial,12,8,5,True
+26,Area VIP Secundaria,zona_especial,8,6,4,True
+27,Zona Descanso 1,zona_descanso,6,5,2,False
+28,Zona Descanso 2,zona_descanso,6,5,2,False
+29,Zona Descanso 3,zona_descanso,6,5,2,False
+30,Zona Descanso 4,zona_descanso,6,5,2,False
+31,Taquilla Principal,servicio,4,3,5,True
+32,Taquilla Norte,servicio,3,2,4,True
+33,Taquilla Sur,servicio,3,2,4,True
+34,Punto Informacion 1,servicio,3,2,3,True
+35,Punto Informacion 2,servicio,3,2,3,True
+36,Punto Informacion 3,servicio,3,2,3,True
+37,Stand Bebidas 1,stand_comida,4,3,3,False
+38,Stand Bebidas 2,stand_comida,4,3,3,False
+39,Stand Bebidas 3,stand_comida,4,3,3,False
+40,Stand Merchandising 1,stand_artesania,5,3,2,False
+41,Stand Merchandising 2,stand_artesania,5,3,2,False
+42,Stand Merchandising 3,stand_artesania,5,3,2,False
+43,Zona Prensa,zona_especial,6,4,3,True
+44,Zona Patrocinadores,zona_especial,8,5,4,True
+45,Bodega Logistica,servicio,5,4,2,False
