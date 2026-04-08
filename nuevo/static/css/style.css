@@ -1,9 +1,4 @@
-/* ─────────────────────────────────────────────────────────────────────────
-   EVENTOESPACIO — style.css
-   Estética: editorial minimalista · dark · tipografía técnica
-───────────────────────────────────────────────────────────────────────── */
-
-/* ── Variables ──────────────────────────────────────────────────────────── */
+─ */
 :root {
   --bg:          #0b0f14;
   --surface:     #111820;
@@ -62,6 +57,7 @@ body {
 .logo-mark {
   width: 36px;
   height: 36px;
+  
   background: var(--accent);
   color: var(--bg);
   font-family: var(--font-display);

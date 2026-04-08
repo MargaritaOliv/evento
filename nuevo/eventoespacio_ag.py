@@ -22,10 +22,10 @@ from typing import List, Tuple, Dict, Any
 
 AG_CONFIG = {
     "POBLACION":     100,
-    "GENERACIONES":  250,
+    "GENERACIONES":  400,
     "PROB_CRUCE":    0.85,
-    "PROB_MUTACION": 0.20,
-    "ELITISMO":      5,
+    "PROB_MUTACION": 0.35,
+    "ELITISMO":      2,
     "TORNEO_K":      4,
 }
 
@@ -230,7 +230,7 @@ def _solapamiento(ind: Individuo, em: dict) -> float:
     area_elementos = sum(em[g.elemento_id].ancho * em[g.elemento_id].alto for g in ind)
     # Penalización cuadrática: incluso un solapamiento pequeño = penalización fuerte
     ratio = min(area_total_solapada / max(area_elementos, 1), 1.0)
-    return float(ratio ** 0.5)   # raíz cuadrada → penalización alta para áreas pequeñas
+    return float(ratio ** 0.3)   # raíz cuadrada → penalización alta para áreas pequeñas
 
 
 def _e_dist(ind, em, venue):
