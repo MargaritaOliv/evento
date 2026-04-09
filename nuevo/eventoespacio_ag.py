@@ -1,604 +1,642 @@
-"""
-EVENTOESPACIO — Núcleo del Algoritmo Genético
-Expone run_ag() que retorna los 3 mejores individuos distintos.
 
-BUGS CORREGIDOS:
-  1. individuo_aleatorio: ahora verifica colisiones entre elementos ya colocados
-  2. _solapamiento: penalización mucho más agresiva (cuadrática, no ratio suave)
-  3. _p_prior: fórmula tenía un error de paréntesis que la hacía salir de [0,1]
-  4. top3: garantiza diversidad mínima entre los 3 mejores (distancia de posiciones)
-"""
-
-import numpy as np
-import pandas as pd
+import csv
 import random
+import math
 import copy
-from dataclasses import dataclass
-from typing import List, Tuple, Dict, Any
+import os
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  CONFIGURACIÓN
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# RUTAS DE ARCHIVOS POR DEFECTO
+# ─────────────────────────────────────────────
+BASE_DIR              = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR              = os.path.join(BASE_DIR, "data")
+ARCHIVO_ELEMENTOS     = os.path.join(DATA_DIR, "catalogo_elementos.csv")
+ARCHIVO_RESTRICCIONES = os.path.join(DATA_DIR, "catalogo_restricciones.csv")
 
-AG_CONFIG = {
-    "POBLACION":     100,
-    "GENERACIONES":  400,
-    "PROB_CRUCE":    0.85,
-    "PROB_MUTACION": 0.35,
-    "ELITISMO":      2,
-    "TORNEO_K":      4,
-}
+# ─────────────────────────────────────────────
+# 1. PARÁMETROS POR DEFECTO
+# ─────────────────────────────────────────────
+TAM_POBLACION  = 100
+P_CRUZA        = 0.70
+P_MUT_IND      = 0.30
+P_MUT_GEN      = 0.25
+N_GENERACIONES = 400
 
-PESOS = {
-    "E_distribucion": 0.25,
-    "F_flujo":        0.30,
-    "C_conectividad": 0.25,
-    "P_prioridad":    0.20,
-}
+ANCHO_GRID = 20
+ALTO_GRID  = 20
 
-ZONA_OPTIMA = {
-    "escenario":       (0.50, 0.20),
-    "stand_comida":    (0.25, 0.70),
-    "stand_artesania": (0.75, 0.70),
-    "servicio":        (0.50, 0.50),
-    "acceso":          (0.50, 0.00),
-    "zona_especial":   (0.50, 0.30),
-    "zona_descanso":   (0.20, 0.50),
-}
+# Pesos de la función fitness (deben sumar 1.0)
+W_DISTRIBUCION  = 0.25   # WE
+W_FLUJO         = 0.30   # WF
+W_CONECTIVIDAD  = 0.30   # WC
+W_PRIORIDAD     = 0.15   # WP
 
-COLORES_TIPO = {
-    "escenario":       "#E05252",
-    "stand_comida":    "#E8A838",
-    "stand_artesania": "#4CAF82",
-    "servicio":        "#4A9EDB",
-    "acceso":          "#9B6DD6",
-    "zona_especial":   "#C94040",
-    "zona_descanso":   "#3ABFB0",
-}
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  ESTRUCTURAS
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# 2. LECTURA DE BASE DE CONOCIMIENTO (CSV)
+# ─────────────────────────────────────────────
+def cargar_elementos(archivo=None):
+    if archivo is None:
+        archivo = ARCHIVO_ELEMENTOS
+    elementos = []
+    with open(archivo, newline='', encoding='utf-8') as f:
+        for fila in csv.DictReader(f):
+            # Soporte de ambos formatos de CSV (antiguo y nuevo)
+            req = fila.get("requiere_acceso") or fila.get("requires_access", "0")
+            if isinstance(req, str):
+                req = 1 if req.strip().lower() in ("1", "true") else 0
+            elementos.append({
+                "id":              int(fila["id"]),
+                "nombre":          fila.get("nombre", fila.get("tipo", "")),
+                "tipo":            fila["tipo"],
+                "prioridad":       fila["prioridad"],
+                "ancho":           int(fila["ancho"]),
+                "alto":            int(fila["alto"]),
+                "requiere_acceso": int(req)
+            })
+    return elementos
 
-@dataclass
-class Elemento:
-    id: int
-    nombre: str
-    tipo: str
-    ancho: int
-    alto: int
-    prioridad: int
-    requires_access: bool
 
-@dataclass
-class Restriccion:
-    id: int
-    tipo: str
-    x1: int; y1: int; x2: int; y2: int
-    descripcion: str
+def cargar_restricciones(archivo=None):
+    if archivo is None:
+        archivo = ARCHIVO_RESTRICCIONES
+    restricciones = []
+    with open(archivo, newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for fila in reader:
+            # Soporte de ambos formatos: (x,y) y (x1,y1,x2,y2)
+            if "x1" in fila:
+                # Formato nuevo: usamos el punto medio como referencia
+                x = (int(fila["x1"]) + int(fila["x2"])) // 2
+                y = (int(fila["y1"]) + int(fila["y2"])) // 2
+                # Guardamos también x1,y1,x2,y2 para celdas restringidas
+                x1, y1 = int(fila["x1"]), int(fila["y1"])
+                x2, y2 = int(fila["x2"]), int(fila["y2"])
+            else:
+                x = int(fila["x"])
+                y = int(fila["y"])
+                x1 = y1 = x2 = y2 = None
 
-@dataclass
-class Gen:
-    elemento_id: int
-    x: int
-    y: int
+            restricciones.append({
+                "id":          int(fila["id"]),
+                "tipo":        fila["tipo"],
+                "x":           x,
+                "y":           y,
+                "x1": x1, "y1": y1,
+                "x2": x2, "y2": y2,
+                "descripcion": fila.get("descripcion", "")
+            })
+    return restricciones
 
-Individuo = List[Gen]
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  CARGA
-# ─────────────────────────────────────────────────────────────────────────────
+def obtener_entradas(restricciones):
+    return [r for r in restricciones if r["tipo"] == "entrada"]
 
-def cargar_elementos(ruta: str) -> List[Elemento]:
-    df = pd.read_csv(ruta)
-    return [Elemento(
-        id=int(r["id"]), nombre=str(r["nombre"]),
-        tipo=str(r["tipo"]).strip(),
-        ancho=int(r["ancho"]), alto=int(r["alto"]),
-        prioridad=int(r["prioridad"]),
-        requires_access=str(r["requires_access"]).strip().lower() in ("true","1","yes")
-    ) for _, r in df.iterrows()]
 
-def cargar_restricciones(ruta: str) -> List[Restriccion]:
-    df = pd.read_csv(ruta)
-    return [Restriccion(
-        id=int(r["id"]), tipo=str(r["tipo"]).strip(),
-        x1=int(r["x1"]), y1=int(r["y1"]),
-        x2=int(r["x2"]), y2=int(r["y2"]),
-        descripcion=str(r["descripcion"])
-    ) for _, r in df.iterrows()]
+# FIX 3: función separada para salidas de emergencia
+def obtener_salidas(restricciones):
+    return [r for r in restricciones if r["tipo"] == "salida"]
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  VENUE
-# ─────────────────────────────────────────────────────────────────────────────
 
-class Venue:
-    def __init__(self, ancho: int, alto: int, restricciones: List[Restriccion]):
-        self.ancho = ancho
-        self.alto  = alto
-        self.restricciones = restricciones
-        self.mapa_bloqueado = np.zeros((alto, ancho), dtype=bool)
-        self.puntos_acceso: List[Tuple[int,int]] = []
-        self.d_max = ancho + alto
-        self._procesar()
+def obtener_celdas_restringidas(restricciones):
+    celdas = set()
+    for r in restricciones:
+        if r["tipo"] in ("zona_restringida", "columna"):
+            if r["x1"] is not None:
+                for cx in range(r["x1"], r["x2"]):
+                    for cy in range(r["y1"], r["y2"]):
+                        celdas.add((cx, cy))
+            else:
+                celdas.add((r["x"], r["y"]))
+    return celdas
 
-    def _procesar(self):
-        for r in self.restricciones:
-            x1,x2 = min(r.x1,r.x2), max(r.x1,r.x2)
-            y1,y2 = min(r.y1,r.y2), max(r.y1,r.y2)
-            if r.tipo in ("zona_restringida","columna"):
-                self.mapa_bloqueado[y1:y2+1, x1:x2+1] = True
-            elif r.tipo in ("entrada","salida"):
-                self.puntos_acceso.append(((x1+x2)//2, (y1+y2)//2))
 
-    def celdas_disponibles(self) -> int:
-        return int((~self.mapa_bloqueado).sum())
+# ─────────────────────────────────────────────
+# 3. UTILIDADES GEOMÉTRICAS
+# ─────────────────────────────────────────────
+def dims_efectivas(elem, rotado):
+    """Devuelve (ancho, alto) aplicando rotación."""
+    if rotado:
+        return elem["alto"], elem["ancho"]
+    return elem["ancho"], elem["alto"]
 
-    def celdas_disp_cuadrante(self, qx1,qy1,qx2,qy2) -> int:
-        return int((~self.mapa_bloqueado[qy1:qy2, qx1:qx2]).sum())
 
-    def es_valido(self, x, y, ancho, alto) -> bool:
-        """True si el rectángulo cabe sin tocar bordes ni celdas bloqueadas."""
-        if x < 1 or y < 1 or x + ancho > self.ancho - 1 or y + alto > self.alto - 1:
-            return False
-        return not bool(self.mapa_bloqueado[y:y+alto, x:x+ancho].any())
+def celdas_del_elemento(x, y, ancho, alto):
+    return {(x + dx, y + dy)
+            for dx in range(ancho)
+            for dy in range(alto)}
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  UTILIDAD: detección de solapamiento entre dos rectángulos
-# ─────────────────────────────────────────────────────────────────────────────
 
-def _solapan(ax, ay, aw, ah, bx, by, bw, bh) -> bool:
-    """True si los dos rectángulos se solapan."""
-    return not (ax + aw <= bx or bx + bw <= ax or
-                ay + ah <= by or by + bh <= ay)
+def elemento_es_valido(x, y, ancho, alto, celdas_restringidas):
+    return celdas_del_elemento(x, y, ancho, alto).isdisjoint(celdas_restringidas)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  PROCESO 1 — INICIALIZACIÓN  (BUG 1 CORREGIDO)
-#
-#  El error original: solo verificaba venue.es_valido() — que comprueba
-#  celdas bloqueadas del venue — pero NO verificaba colisiones con los
-#  elementos ya colocados en el mismo individuo.
-#  Corrección: se mantiene una lista de rectángulos ya usados y se verifica
-#  solapamiento con cada uno antes de aceptar la posición.
-# ─────────────────────────────────────────────────────────────────────────────
 
-def individuo_aleatorio(elementos: List[Elemento], venue: Venue) -> Individuo:
-    ind: Individuo = []
-    ocupados: List[Tuple[int,int,int,int]] = []  # (x, y, ancho, alto)
+def se_solapan(x1, y1, w1, h1, x2, y2, w2, h2):
+    return not (x1 + w1 <= x2 or x2 + w2 <= x1 or
+                y1 + h1 <= y2 or y2 + h2 <= y1)
 
-    for e in elementos:
-        colocado = False
-        for _ in range(1000):
-            x = random.randint(1, max(1, venue.ancho - e.ancho - 1))
-            y = random.randint(1, max(1, venue.alto  - e.alto  - 1))
 
-            # 1) Verificar venue (bordes + zonas bloqueadas)
-            if not venue.es_valido(x, y, e.ancho, e.alto):
-                continue
+def area_solapamiento(x1, y1, w1, h1, x2, y2, w2, h2):
+    """Área de intersección entre dos rectángulos (0 si no se tocan)."""
+    dx = min(x1 + w1, x2 + w2) - max(x1, x2)
+    dy = min(y1 + h1, y2 + h2) - max(y1, y2)
+    if dx > 0 and dy > 0:
+        return dx * dy
+    return 0
 
-            # 2) Verificar que no se solape con ningún elemento ya colocado
-            if any(_solapan(x, y, e.ancho, e.alto, ox, oy, ow, oh)
-                   for ox, oy, ow, oh in ocupados):
-                continue
 
-            ind.append(Gen(e.id, x, y))
-            ocupados.append((x, y, e.ancho, e.alto))
-            colocado = True
-            break
-
-        if not colocado:
-            # Fallback: colocar en (1,1) aunque solape — el fitness penalizará
-            ind.append(Gen(e.id, 1, 1))
-
-    return ind
-
-def inicializar(elementos, venue, tam) -> List[Individuo]:
-    return [individuo_aleatorio(elementos, venue) for _ in range(tam)]
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  PROCESO 2 — FITNESS
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _solapamiento(ind: Individuo, em: dict) -> float:
+# ─────────────────────────────────────────────
+# FIX 1 — Factor de Superposición suave
+# ─────────────────────────────────────────────
+def calcular_factor_superposicion(individuo, elementos, W, H):
     """
-    BUG 2 CORREGIDO — Penalización agresiva por solapamiento.
+    Retorna un valor ∈ (0, 1].
+    · 1.0  → sin solapamiento alguno (solución perfectamente viable)
+    · ~0   → solapamiento masivo (fuerte penalización, pero el individuo
+              sigue siendo "comparable" con otros muy malos)
 
-    Error original: λ = pares_solapados / total_pares
-    Era demasiado suave: con 18 elementos (153 pares), 3 solapamientos
-    solo daban λ ≈ 0.02 → fitness apenas bajaba 2%.
-
-    Corrección: penalización cuadrática proporcional al área solapada.
-    Si hay cualquier solapamiento → fitness se destruye cerca de 0.
+    Fórmula:
+        area_encimada_total / area_total_elementos
+        factor = 1 - clamp(ratio, 0, 1)
+    Se añade un piso de 0.05 para que nunca sea exactamente 0
+    (el algoritmo siempre puede distinguir "más malo" de "menos malo").
     """
-    n = len(ind)
-    area_total_solapada = 0
+    n = len(individuo)
+    area_encimada = 0
+    area_total = sum(dims_efectivas(elementos[i], individuo[i][2])[0] *
+                     dims_efectivas(elementos[i], individuo[i][2])[1]
+                     for i in range(n))
 
     for i in range(n):
+        xi, yi, ri = individuo[i]
+        wi, hi = dims_efectivas(elementos[i], ri)
         for j in range(i + 1, n):
-            ga, gb = ind[i], ind[j]
-            ea, eb = em[ga.elemento_id], em[gb.elemento_id]
+            xj, yj, rj = individuo[j]
+            wj, hj = dims_efectivas(elementos[j], rj)
+            area_encimada += area_solapamiento(xi, yi, wi, hi, xj, yj, wj, hj)
 
-            # Calcular área de intersección
-            ix = max(0, min(ga.x + ea.ancho, gb.x + eb.ancho) - max(ga.x, gb.x))
-            iy = max(0, min(ga.y + ea.alto,  gb.y + eb.alto)  - max(ga.y, gb.y))
-            area_total_solapada += ix * iy
-
-    if area_total_solapada == 0:
-        return 0.0
-
-    # Normalizar contra el área total de todos los elementos
-    area_elementos = sum(em[g.elemento_id].ancho * em[g.elemento_id].alto for g in ind)
-    # Penalización cuadrática: incluso un solapamiento pequeño = penalización fuerte
-    ratio = min(area_total_solapada / max(area_elementos, 1), 1.0)
-    return float(ratio ** 0.3)   # raíz cuadrada → penalización alta para áreas pequeñas
-
-
-def _e_dist(ind, em, venue):
-    """
-    E_dist — Distribución equilibrada entre los 4 cuadrantes del venue.
-
-    PROBLEMA ORIGINAL: 1 - sigma/media colapsaba a ~0 cuando la densidad
-    media era muy pequeña (venue grande, elementos pequeños → media≈0.01),
-    haciendo que sigma/media explotara aunque visualmente hubiera balance.
-
-    CORRECCIÓN: medir la fracción de ÁREA DE ELEMENTOS en cada cuadrante
-    (no la densidad respecto al venue). Las fracciones suman 1.0, por lo que
-    sigma_max = 0.5 (todo en un cuadrante). Normalizar con 2·sigma.
-
-      fraccion_k = area_elementos_en_cuadrante_k / area_total_elementos
-      E_dist = max(0, 1 - 2·sigma(fracciones))
-
-    Resultado: 1.0 si los 4 cuadrantes tienen exactamente el mismo peso,
-               0.0 si todos los elementos están en un solo cuadrante.
-    """
-    cuads = [
-        (0,              0,             venue.ancho//2, venue.alto//2),
-        (venue.ancho//2, 0,             venue.ancho,    venue.alto//2),
-        (0,              venue.alto//2, venue.ancho//2, venue.alto),
-        (venue.ancho//2, venue.alto//2, venue.ancho,    venue.alto),
-    ]
-
-    area_total = sum(
-        em[g.elemento_id].ancho * em[g.elemento_id].alto for g in ind
-    )
     if area_total == 0:
         return 1.0
 
-    fracciones = []
-    for qx1, qy1, qx2, qy2 in cuads:
-        area_cuad = sum(
-            em[g.elemento_id].ancho * em[g.elemento_id].alto
-            for g in ind
-            if qx1 <= g.x + em[g.elemento_id].ancho // 2 < qx2
-            and qy1 <= g.y + em[g.elemento_id].alto  // 2 < qy2
-        )
-        fracciones.append(area_cuad / area_total)
-
-    sigma = np.array(fracciones).std()
-    return float(max(0.0, 1.0 - 2.0 * sigma))
+    ratio = area_encimada / area_total
+    factor = 1.0 - min(ratio, 1.0)
+    return max(0.05, factor)   # piso de 0.05 para mantener gradiente
 
 
-def _f_flujo(ind, em, venue):
-    ALPHA = 0.6
-    ocu = np.copy(venue.mapa_bloqueado).astype(int)
-    for g in ind:
-        e = em[g.elemento_id]
-        ocu[g.y:min(g.y+e.alto, venue.alto),
-            g.x:min(g.x+e.ancho, venue.ancho)] = 1
-    disp  = venue.celdas_disponibles()
-    lib   = (ocu == 0) & (~venue.mapa_bloqueado)
-    n_lib = int(lib.sum())
-    if disp == 0:
-        return 0.0
-    R = n_lib / disp
-    if n_lib == 0:
-        B = 1.0
-    else:
-        li  = lib.astype(int)
-        vec = (np.roll(li,1,0) + np.roll(li,-1,0) +
-               np.roll(li,1,1) + np.roll(li,-1,1))
-        B = int(((vec <= 2) & lib).sum()) / n_lib
-    return float(ALPHA * R + (1 - ALPHA) * (1 - B))
+# ─────────────────────────────────────────────
+# 4. REPRESENTACIÓN DEL INDIVIDUO  (FIX 4: rotación)
+# ─────────────────────────────────────────────
+# Cada gen = (x, y, rotado)  con rotado ∈ {0, 1}
 
+def crear_individuo(elementos, celdas_restringidas, W=None, H=None):
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
 
-def _c_conex(ind, em, venue):
-    """
-    C_conex — Accesibilidad de elementos prioritarios a entradas/salidas.
+    individuo = []
+    for elem in elementos:
+        rotado = random.randint(0, 1)
+        ancho, alto = dims_efectivas(elem, rotado)
 
-    PROBLEMA ORIGINAL: se normalizaba con d_max = ancho + alto = 90.
-    Pero los accesos están en los bordes y los elementos en el interior,
-    por lo que la distancia mínima posible ya es ~15-25 celdas, haciendo
-    que el score máximo alcanzable fuera solo ~0.7, nunca cercano a 1.0.
+        # Asegura que el elemento cabe; si no, no rota
+        if ancho > W or alto > H:
+            rotado = 0
+            ancho, alto = dims_efectivas(elem, rotado)
 
-    CORRECCIÓN: normalizar con la distancia máxima REAL del venue —
-    calculada dinámicamente como la distancia Manhattan máxima posible
-    desde cualquier celda interior hasta el punto de acceso MÁS CERCANO.
-    Esto calibra la escala al espacio real disponible.
-
-      d_ref = max distancia Manhattan desde esquina más lejana a acceso más cercano
-      score_i = 1 - d_min_i / d_ref
-    """
-    acc = venue.puntos_acceso or [(venue.ancho // 2, venue.alto // 2)]
-    elems_acc = [g for g in ind if em[g.elemento_id].requires_access]
-    if not elems_acc:
-        return 1.0
-
-    # Calcular d_ref: distancia máxima real desde cualquier esquina al acceso más cercano
-    esquinas = [
-        (1, 1),
-        (venue.ancho - 2, 1),
-        (1, venue.alto - 2),
-        (venue.ancho - 2, venue.alto - 2),
-    ]
-    d_ref = max(
-        min(abs(ex - ax) + abs(ey - ay) for ax, ay in acc)
-        for ex, ey in esquinas
-    )
-    if d_ref == 0:
-        return 1.0
-
-    scores = []
-    for g in elems_acc:
-        e  = em[g.elemento_id]
-        cx, cy = g.x + e.ancho // 2, g.y + e.alto // 2
-        d_min = min(abs(cx - ax) + abs(cy - ay) for ax, ay in acc)
-        scores.append(max(0.0, 1.0 - d_min / d_ref))
-    return float(np.mean(scores))
-
-
-def _p_prior(ind, em, venue):
-    """
-    BUG 3 CORREGIDO — Error de paréntesis en la fórmula original:
-        total += e.prioridad * (1.0 - abs(cx-ox) + abs(cy-oy) / venue.d_max)
-    El + en vez de - hacía que el valor pudiera ser > 1 o negativo.
-    Corrección:
-        s_i = 1 - (d_manhattan / d_max)   con d_manhattan = |cx-ox| + |cy-oy|
-    """
-    sp = sum(e.prioridad for e in em.values())
-    if sp == 0:
-        return 0.0
-    total = 0.0
-    for g in ind:
-        e  = em[g.elemento_id]
-        fx, fy = ZONA_OPTIMA.get(e.tipo, (0.5, 0.5))
-        ox = int(fx * venue.ancho)
-        oy = int(fy * venue.alto)
-        cx = g.x + e.ancho // 2
-        cy = g.y + e.alto  // 2
-        d  = abs(cx - ox) + abs(cy - oy)          # distancia Manhattan
-        s  = max(0.0, 1.0 - d / venue.d_max)      # score normalizado [0,1]
-        total += e.prioridad * s
-    return float(min(total / sp, 1.0))
-
-
-def fitness(ind: Individuo, elementos: List[Elemento],
-            venue: Venue) -> Tuple[float, dict]:
-    """
-    F_total = (w1·E + w2·F + w3·C + w4·P) · (1 - λ_solap) · (1 - λ_fuera)
-    """
-    em = {e.id: e for e in elementos}
-
-    E = _e_dist(ind, em, venue)
-    F = _f_flujo(ind, em, venue)
-    C = _c_conex(ind, em, venue)
-    P = _p_prior(ind, em, venue)
-
-    base = (PESOS["E_distribucion"] * E +
-            PESOS["F_flujo"]        * F +
-            PESOS["C_conectividad"] * C +
-            PESOS["P_prioridad"]    * P)
-
-    ls = _solapamiento(ind, em)
-    fuera = sum(1 for g in ind
-                if not venue.es_valido(g.x, g.y,
-                                       em[g.elemento_id].ancho,
-                                       em[g.elemento_id].alto))
-    lf = fuera / len(ind) if ind else 0.0
-
-    total = base * (1 - ls) * (1 - lf)
-
-    return total, {
-        "E_distribucion": round(E, 4),
-        "F_flujo":        round(F, 4),
-        "C_conectividad": round(C, 4),
-        "P_prioridad":    round(P, 4),
-        "penalizacion":   round(1 - (1 - ls) * (1 - lf), 4),
-        "fitness":        round(total, 6),
-    }
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  PROCESOS 3–6
-# ─────────────────────────────────────────────────────────────────────────────
-
-def seleccion_torneo(pob, scores, k):
-    cands = random.sample(range(len(pob)), k)
-    return copy.deepcopy(pob[max(cands, key=lambda i: scores[i])])
-
-
-def cruce(p1, p2, prob):
-    if random.random() > prob or len(p1) < 2:
-        return copy.deepcopy(p1), copy.deepcopy(p2)
-    pt = random.randint(1, len(p1) - 1)
-    return copy.deepcopy(p1[:pt] + p2[pt:]), copy.deepcopy(p2[:pt] + p1[pt:])
-
-
-def mutacion(ind, elementos, venue, prob):
-    """
-    Mutación que también respeta colisiones entre elementos del mismo individuo.
-    """
-    em = {e.id: e for e in elementos}
-    m  = copy.deepcopy(ind)
-
-    for idx, g in enumerate(m):
-        if random.random() < prob:
-            e = em[g.elemento_id]
-            # Rectángulos de todos los demás elementos (para evitar colisiones)
-            otros = [(m[j].x, m[j].y, em[m[j].elemento_id].ancho,
-                      em[m[j].elemento_id].alto)
-                     for j in range(len(m)) if j != idx]
-
-            for _ in range(400):
-                nx = random.randint(1, max(1, venue.ancho - e.ancho - 1))
-                ny = random.randint(1, max(1, venue.alto  - e.alto  - 1))
-                if not venue.es_valido(nx, ny, e.ancho, e.alto):
-                    continue
-                if any(_solapan(nx, ny, e.ancho, e.alto, ox, oy, ow, oh)
-                       for ox, oy, ow, oh in otros):
-                    continue
-                g.x, g.y = nx, ny
+        intentos = 0
+        while True:
+            intentos += 1
+            x = random.randint(0, max(0, W - ancho))
+            y = random.randint(0, max(0, H - alto))
+            if elemento_es_valido(x, y, ancho, alto, celdas_restringidas):
                 break
-    return m
+            if intentos > 500:
+                break
+        individuo.append((x, y, rotado))
+    return individuo
 
 
-def poda(pob, scores, hijos, sh, n_elite, tam):
-    idx_e = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:n_elite]
-    comb  = [copy.deepcopy(pob[i]) for i in idx_e] + hijos
-    sc    = [scores[i] for i in idx_e] + sh
-    idx   = sorted(range(len(sc)), key=lambda i: sc[i], reverse=True)
-    return [comb[i] for i in idx[:tam]], [sc[i] for i in idx[:tam]]
+def crear_poblacion(elementos, celdas_restringidas, tam=None, W=None, H=None):
+    if tam is None: tam = TAM_POBLACION
+    return [crear_individuo(elementos, celdas_restringidas, W, H)
+            for _ in range(tam)]
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  DIVERSIDAD — distancia entre dos individuos
-# ─────────────────────────────────────────────────────────────────────────────
 
-def _distancia(ind_a: Individuo, ind_b: Individuo) -> float:
+# ─────────────────────────────────────────────
+# 5. FUNCIONES OBJETIVO
+# ─────────────────────────────────────────────
+
+def calcular_O1_distribucion(individuo, elementos, W=None, H=None):
     """
-    Distancia promedio de posiciones entre dos individuos.
-    Usada para garantizar que el top-3 sea diverso.
+    O1: Equilibrio de distribución por cuadrantes.
+    Mide qué tan uniformemente están repartidos los elementos.
     """
-    total = sum(
-        abs(ga.x - gb.x) + abs(ga.y - gb.y)
-        for ga, gb in zip(ind_a, ind_b)
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
+
+    mitad_x = W / 2
+    mitad_y = H / 2
+    cuadrantes = [0, 0, 0, 0]
+
+    for (x, y, _) in individuo:
+        if   x >= mitad_x and y >= mitad_y: cuadrantes[0] += 1
+        elif x <  mitad_x and y >= mitad_y: cuadrantes[1] += 1
+        elif x >= mitad_x and y <  mitad_y: cuadrantes[2] += 1
+        else:                               cuadrantes[3] += 1
+
+    total = len(individuo)
+    if total == 0:
+        return 0
+    promedio = total / 4
+    O1 = 1 - ((promedio - min(cuadrantes)) / total)
+    return max(0.0, min(1.0, O1))
+
+
+# FIX 2 — Flujo basado en separación real entre elementos
+def calcular_O2_flujo(individuo, elementos, W=None, H=None):
+    """
+    O2: Calidad del flujo de personas.
+
+    Mide la separación mínima promedio entre pares de elementos
+    vecinos (distancia borde-a-borde), normalizada por la
+    diagonal del recinto.
+
+    Cuanto mayor sea la separación entre elementos, más espacio
+    libre existe para que la gente circule → menos "muros".
+
+    Para n elementos, se calculan todas las separaciones par a par
+    y se promedian.  Se normaliza con la diagonal del recinto.
+    """
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
+
+    n = len(individuo)
+    if n < 2:
+        return 1.0
+
+    diagonal = math.sqrt(W**2 + H**2)
+    separaciones = []
+
+    for i in range(n):
+        xi, yi, ri = individuo[i]
+        wi, hi = dims_efectivas(elementos[i], ri)
+        for j in range(i + 1, n):
+            xj, yj, rj = individuo[j]
+            wj, hj = dims_efectivas(elementos[j], rj)
+
+            # Distancia borde-a-borde en X e Y
+            sep_x = max(0, max(xi, xj) - min(xi + wi, xj + wj))
+            sep_y = max(0, max(yi, yj) - min(yi + hi, yj + hj))
+
+            # Distancia euclidiana borde-a-borde
+            sep = math.sqrt(sep_x**2 + sep_y**2)
+            separaciones.append(sep)
+
+    if not separaciones:
+        return 1.0
+
+    sep_promedio = sum(separaciones) / len(separaciones)
+    # Normalizar: separación ideal = ~10 % de la diagonal
+    # Saturamos en 1.0 para no penalizar "demasiado espacio"
+    O2 = min(1.0, sep_promedio / (diagonal * 0.15))
+    return max(0.0, O2)
+
+
+# FIX 3 — Conectividad: entradas (40 %) + salidas de emergencia (60 %)
+def calcular_O3_conectividad(individuo, elementos, entradas, salidas, W=None, H=None):
+    """
+    O3: Accesibilidad ponderada.
+
+    · 40 % → proximidad a entradas  (experiencia del asistente)
+    · 60 % → proximidad a salidas de emergencia  (protección civil)
+
+    Solo se evalúan elementos con requiere_acceso == 1.
+    Si no hay entradas ni salidas definidas, retorna 1.0.
+    """
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
+
+    distancia_max = math.sqrt(W**2 + H**2)
+    elementos_acceso = [i for i, e in enumerate(elementos)
+                        if e["requiere_acceso"] == 1]
+
+    if not elementos_acceso:
+        return 1.0
+
+    def score_proximity(idx_lista, puntos):
+        """Promedio de (1 - dist_normalizada) para los elementos de la lista."""
+        if not puntos:
+            return 1.0
+        total = 0.0
+        for i in idx_lista:
+            x, y, _ = individuo[i]
+            d = min(math.sqrt((x - p["x"])**2 + (y - p["y"])**2)
+                    for p in puntos)
+            total += 1.0 - (d / distancia_max)
+        return total / len(idx_lista)
+
+    score_entradas = score_proximity(elementos_acceso, entradas)
+    score_salidas  = score_proximity(elementos_acceso, salidas) if salidas else 1.0
+
+    O3 = 0.40 * score_entradas + 0.60 * score_salidas
+    return max(0.0, min(1.0, O3))
+
+
+def calcular_O4_prioridad(individuo, elementos, W=None, H=None):
+    """
+    O4: Elementos de alta prioridad cerca del centro del recinto.
+    """
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
+
+    cx = W / 2
+    cy = H / 2
+    radio = min(W, H) / 3
+
+    # Soporte de prioridad numérica (nuevo CSV) y textual (antiguo CSV)
+    def es_alta(e):
+        p = e["prioridad"]
+        try:
+            return float(p) >= 4
+        except (ValueError, TypeError):
+            return str(p).strip().lower() == "alta"
+
+    alta = [i for i, e in enumerate(elementos) if es_alta(e)]
+    if not alta:
+        return 1.0
+
+    en_zona = sum(
+        1 for i in alta
+        if math.sqrt((individuo[i][0] - cx)**2 + (individuo[i][1] - cy)**2) <= radio
     )
-    return total / max(len(ind_a), 1)
+    return max(0.0, min(1.0, en_zona / len(alta)))
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  SERIALIZACIÓN
-# ─────────────────────────────────────────────────────────────────────────────
 
-def individuo_a_dict(ind: Individuo, elementos: List[Elemento],
-                     venue: Venue, metricas: dict, rank: int) -> Dict[str, Any]:
-    em = {e.id: e for e in elementos}
-    return {
-        "rank":      rank,
-        "metricas":  metricas,
-        "venue_ancho": venue.ancho,
-        "venue_alto":  venue.alto,
-        "elementos": [{
-            "id":        em[g.elemento_id].id,
-            "nombre":    em[g.elemento_id].nombre,
-            "tipo":      em[g.elemento_id].tipo,
-            "x":         g.x, "y": g.y,
-            "ancho":     em[g.elemento_id].ancho,
-            "alto":      em[g.elemento_id].alto,
-            "prioridad": em[g.elemento_id].prioridad,
-            "color":     COLORES_TIPO.get(em[g.elemento_id].tipo, "#8b949e"),
-        } for g in ind],
-        "restricciones": [{
-            "tipo":        r.tipo,
-            "x1": min(r.x1,r.x2), "y1": min(r.y1,r.y2),
-            "x2": max(r.x1,r.x2), "y2": max(r.y1,r.y2),
-            "descripcion": r.descripcion,
-        } for r in venue.restricciones],
-    }
+# ─────────────────────────────────────────────
+# FITNESS — Suma Ponderada × Factor_Superposicion
+# ─────────────────────────────────────────────
+def calcular_aptitud(individuo, elementos, entradas, salidas, W=None, H=None,
+                     WE=W_DISTRIBUCION, WF=W_FLUJO, WC=W_CONECTIVIDAD, WP=W_PRIORIDAD):
+    """
+    Aptitud = [(O1·WE) + (O2·WF) + (O3·WC) + (O4·WP)] × Factor_Superposicion
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  PUNTO DE ENTRADA
-# ─────────────────────────────────────────────────────────────────────────────
+    FIX 1: Factor_Superposicion es continuo (0.05 – 1.0), no binario.
+           El algoritmo siempre puede distinguir soluciones "más malas"
+           de "menos malas", aunque todas se encimen.
+    """
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
 
-def run_ag(venue_ancho: int, venue_alto: int,
-           ruta_elementos: str, ruta_restricciones: str,
-           config: dict = None, seed: int = 42) -> Dict[str, Any]:
+    # Suma ponderada de objetivos
+    O1 = calcular_O1_distribucion(individuo, elementos, W, H)
+    O2 = calcular_O2_flujo(individuo, elementos, W, H)
+    O3 = calcular_O3_conectividad(individuo, elementos, entradas, salidas, W, H)
+    O4 = calcular_O4_prioridad(individuo, elementos, W, H)
 
-    random.seed(seed)
-    np.random.seed(seed)
+    suma_ponderada = (O1 * WE) + (O2 * WF) + (O3 * WC) + (O4 * WP)
 
-    cfg     = config or AG_CONFIG
-    TAM     = cfg["POBLACION"]
-    GENS    = cfg["GENERACIONES"]
-    P_CRUCE = cfg["PROB_CRUCE"]
-    P_MUT   = cfg["PROB_MUTACION"]
-    ELITE   = cfg["ELITISMO"]
-    K       = cfg["TORNEO_K"]
+    # FIX 1: penalización suave por área encimada
+    factor_sup = calcular_factor_superposicion(individuo, elementos, W, H)
 
-    elementos     = cargar_elementos(ruta_elementos)
-    restricciones = cargar_restricciones(ruta_restricciones)
-    venue         = Venue(venue_ancho, venue_alto, restricciones)
+    aptitud = suma_ponderada * factor_sup
+    return max(0.0, min(1.0, aptitud))
 
-    # 1. Inicialización
-    pob    = inicializar(elementos, venue, TAM)
-    scores = [fitness(ind, elementos, venue)[0] for ind in pob]
-    historial = []
 
-    for gen_num in range(GENS):
-        hijos, sh = [], []
-        while len(hijos) < TAM:
-            p1 = seleccion_torneo(pob, scores, K)
-            p2 = seleccion_torneo(pob, scores, K)
-            h1, h2 = cruce(p1, p2, P_CRUCE)
-            h1 = mutacion(h1, elementos, venue, P_MUT)
-            h2 = mutacion(h2, elementos, venue, P_MUT)
-            hijos.extend([h1, h2])
+# ─────────────────────────────────────────────
+# 6. SELECCIÓN POR TORNEO
+# ─────────────────────────────────────────────
+def seleccion_torneo(poblacion, aptitudes, k=3):
+    candidatos = random.sample(range(len(poblacion)), min(k, len(poblacion)))
+    mejor_idx  = max(candidatos, key=lambda i: aptitudes[i])
+    return copy.deepcopy(poblacion[mejor_idx])
 
-        hijos  = hijos[:TAM]
-        sh     = [fitness(h, elementos, venue)[0] for h in hijos]
-        pob, scores = poda(pob, scores, hijos, sh, ELITE, TAM)
 
-        historial.append({
-            "generacion": gen_num + 1,
-            "mejor":      round(max(scores), 6),
-            "promedio":   round(float(np.mean(scores)), 6),
+# ─────────────────────────────────────────────
+# 7. CRUZAMIENTO  (actualizado para terna x,y,rotado)
+# ─────────────────────────────────────────────
+def cruzamiento(padre1, padre2, p_cruza=None):
+    if p_cruza is None: p_cruza = P_CRUZA
+    if random.random() < p_cruza:
+        punto = random.randint(1, len(padre1) - 1)
+        return padre1[:punto] + padre2[punto:]
+    return copy.deepcopy(padre1)
+
+
+# ─────────────────────────────────────────────
+# 8. MUTACIÓN  (FIX 4: puede mutar también la rotación)
+# ─────────────────────────────────────────────
+def mutacion(individuo, elementos, celdas_restringidas, pmi=None, pmg=None, W=None, H=None):
+    if pmi is None: pmi = P_MUT_IND
+    if pmg is None: pmg = P_MUT_GEN
+    if W is None: W = ANCHO_GRID
+    if H is None: H = ALTO_GRID
+
+    if random.random() < pmi:
+        for i in range(len(individuo)):
+            if random.random() < pmg:
+                x_old, y_old, rot_old = individuo[i]
+
+                # 30 % de probabilidad de mutar rotación
+                rotado = 1 - rot_old if random.random() < 0.3 else rot_old
+                ancho, alto = dims_efectivas(elementos[i], rotado)
+
+                # Si con la nueva rotación no cabe, revertir
+                if ancho > W or alto > H:
+                    rotado = rot_old
+                    ancho, alto = dims_efectivas(elementos[i], rotado)
+
+                intentos = 0
+                while True:
+                    intentos += 1
+                    x = random.randint(0, max(0, W - ancho))
+                    y = random.randint(0, max(0, H - alto))
+                    if elemento_es_valido(x, y, ancho, alto, celdas_restringidas):
+                        break
+                    if intentos > 500:
+                        break
+                individuo[i] = (x, y, rotado)
+    return individuo
+
+
+# ─────────────────────────────────────────────
+# 9. ALGORITMO GENÉTICO PRINCIPAL
+# ─────────────────────────────────────────────
+def _insertar_top3(top3, individuo, aptitud):
+    for entry in top3:
+        if abs(entry["aptitud"] - aptitud) < 1e-6:
+            return
+    top3.append({"individuo": copy.deepcopy(individuo), "aptitud": aptitud})
+    top3.sort(key=lambda e: e["aptitud"], reverse=True)
+    if len(top3) > 3:
+        top3.pop()
+
+
+def algoritmo_genetico(elementos, entradas, salidas, celdas_restringidas, params=None):
+    """
+    Ejecuta el AG completo con los 4 fixes.
+    Retorna:
+      mejor_individuo, mejor_aptitud,
+      historial_mejor, historial_promedio, historial_peor,
+      top3
+    """
+    tam_pob = params.get("tam_poblacion", TAM_POBLACION) if params else TAM_POBLACION
+    pc      = params.get("p_cruza",       P_CRUZA)       if params else P_CRUZA
+    pmi     = params.get("p_mut_ind",     P_MUT_IND)     if params else P_MUT_IND
+    pmg     = params.get("p_mut_gen",     P_MUT_GEN)     if params else P_MUT_GEN
+    n_gen   = params.get("generaciones",  N_GENERACIONES) if params else N_GENERACIONES
+    W       = params.get("ancho",         ANCHO_GRID)    if params else ANCHO_GRID
+    H       = params.get("alto",          ALTO_GRID)     if params else ALTO_GRID
+
+    poblacion = crear_poblacion(elementos, celdas_restringidas, tam_pob, W, H)
+
+    historial_mejor    = []
+    historial_promedio = []
+    historial_peor     = []
+
+    mejor_individuo = None
+    mejor_aptitud   = -1.0
+    top3            = []
+
+    for _ in range(n_gen):
+        aptitudes = [
+            calcular_aptitud(ind, elementos, entradas, salidas, W, H)
+            for ind in poblacion
+        ]
+
+        mejor_gen    = max(aptitudes)
+        peor_gen     = min(aptitudes)
+        promedio_gen = sum(aptitudes) / len(aptitudes)
+
+        historial_mejor.append(round(mejor_gen,    6))
+        historial_promedio.append(round(promedio_gen, 6))
+        historial_peor.append(round(peor_gen,      6))
+
+        idx_mejor = aptitudes.index(mejor_gen)
+        if mejor_gen > mejor_aptitud:
+            mejor_aptitud   = mejor_gen
+            mejor_individuo = copy.deepcopy(poblacion[idx_mejor])
+
+        for ind, apt in zip(poblacion, aptitudes):
+            _insertar_top3(top3, ind, apt)
+
+        # Elitismo: el mejor pasa directo
+        nueva_poblacion = [copy.deepcopy(mejor_individuo)]
+        while len(nueva_poblacion) < tam_pob:
+            padre1 = seleccion_torneo(poblacion, aptitudes)
+            padre2 = seleccion_torneo(poblacion, aptitudes)
+            hijo   = cruzamiento(padre1, padre2, pc)
+            hijo   = mutacion(hijo, elementos, celdas_restringidas, pmi, pmg, W, H)
+            nueva_poblacion.append(hijo)
+
+        poblacion = nueva_poblacion
+
+    return (mejor_individuo, mejor_aptitud,
+            historial_mejor, historial_promedio, historial_peor,
+            top3)
+
+
+# ─────────────────────────────────────────────
+# 10. FUNCIÓN PÚBLICA PARA app.py
+# ─────────────────────────────────────────────
+def _individuo_a_tabla(individuo, elementos):
+    tabla = []
+    for i, e in enumerate(elementos):
+        x, y, rotado = individuo[i]
+        ancho, alto = dims_efectivas(e, rotado)
+        tabla.append({
+            "id":        e["id"],
+            "nombre":    e.get("nombre", e["tipo"]),
+            "tipo":      e["tipo"],
+            "prioridad": e["prioridad"],
+            "x": x, "y": y,
+            "ancho": ancho,
+            "alto":  alto,
+            "rotado": bool(rotado)        # FIX 4: se expone al frontend
+        })
+    return tabla
+
+
+def ejecutar_ag(params):
+    """
+    Punto de entrada único para app.py.
+    Acepta 'archivo_elementos' y 'archivo_restricciones' en params.
+    """
+    W = params.get("ancho", ANCHO_GRID)
+    H = params.get("alto",  ALTO_GRID)
+
+    arch_elem = params.get("archivo_elementos")
+    arch_rest = params.get("archivo_restricciones")
+
+    elementos     = cargar_elementos(arch_elem)
+    restricciones = cargar_restricciones(arch_rest)
+    entradas      = obtener_entradas(restricciones)
+    salidas       = obtener_salidas(restricciones)          # FIX 3
+    celdas_rest   = obtener_celdas_restringidas(restricciones)
+
+    (mejor_ind, mejor_apt,
+     hist_mejor, hist_promedio, hist_peor,
+     top3) = algoritmo_genetico(elementos, entradas, salidas, celdas_rest, params)
+
+    # Descomposición del fitness del mejor individuo
+    O1 = round(calcular_O1_distribucion(mejor_ind, elementos, W, H), 4)
+    O2 = round(calcular_O2_flujo(mejor_ind, elementos, W, H), 4)
+    O3 = round(calcular_O3_conectividad(mejor_ind, elementos, entradas, salidas, W, H), 4)
+    O4 = round(calcular_O4_prioridad(mejor_ind, elementos, W, H), 4)
+    FS = round(calcular_factor_superposicion(mejor_ind, elementos, W, H), 4)
+
+    top3_serial = []
+    for rank, entry in enumerate(top3, 1):
+        top3_serial.append({
+            "rank":    rank,
+            "aptitud": round(entry["aptitud"], 6),
+            "tabla":   _individuo_a_tabla(entry["individuo"], elementos)
         })
 
-    # ── BUG 4 CORREGIDO — Top 3 con diversidad garantizada ───────────────────
-    #
-    # Error original: se tomaban los 3 primeros del ranking → casi idénticos
-    # porque el elitismo hace que los top converjan al mismo individuo.
-    #
-    # Corrección: selección greedy por diversidad.
-    #   - El #1 es siempre el de mayor fitness.
-    #   - El #2 es el de mayor fitness que sea suficientemente distinto del #1.
-    #   - El #3 es el de mayor fitness distinto del #1 y del #2.
-    # Umbral de distancia mínima: 3 celdas promedio por elemento.
-
-    UMBRAL_DIVERSIDAD = 3.0   # distancia mínima promedio entre individuos
-
-    idx_ord = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    top3_idx    = [idx_ord[0]]
-    top3_indivs = [pob[idx_ord[0]]]
-
-    for idx in idx_ord[1:]:
-        if len(top3_idx) == 3:
-            break
-        candidato = pob[idx]
-        # Solo agregar si es suficientemente distinto de todos los ya elegidos
-        if all(_distancia(candidato, pob[j]) >= UMBRAL_DIVERSIDAD
-               for j in top3_idx):
-            top3_idx.append(idx)
-            top3_indivs.append(candidato)
-
-    # Si no se encontraron 3 distintos, relajar umbral y completar
-    if len(top3_idx) < 3:
-        for idx in idx_ord[1:]:
-            if len(top3_idx) == 3:
-                break
-            if idx not in top3_idx:
-                top3_idx.append(idx)
-                top3_indivs.append(pob[idx])
-
-    top3 = []
-    for rank, (idx, ind) in enumerate(zip(top3_idx, top3_indivs), 1):
-        _, met = fitness(ind, elementos, venue)
-        top3.append(individuo_a_dict(ind, elementos, venue, met, rank))
-
     return {
-        "top3":      top3,
-        "historial": historial,
-        "config": {
-            "venue_ancho":  venue_ancho,
-            "venue_alto":   venue_alto,
-            "n_elementos":  len(elementos),
-            "generaciones": GENS,
-            "poblacion":    TAM,
-        }
+        "aptitud":        round(mejor_apt, 6),
+        "O1": O1, "O2": O2, "O3": O3, "O4": O4,
+        "factor_superposicion": FS,            # FIX 1: visible en frontend
+        "hist_mejor":     hist_mejor,
+        "hist_promedio":  hist_promedio,
+        "hist_peor":      hist_peor,
+        "top3":           top3_serial,
+        "tabla":          _individuo_a_tabla(mejor_ind, elementos),
+        "restricciones":  restricciones,
+        "ancho": W, "alto": H
     }
+
+
+# ─────────────────────────────────────────────
+# 11. PUNTO DE ENTRADA DIRECTO
+# ─────────────────────────────────────────────
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    elementos     = cargar_elementos()
+    restricciones = cargar_restricciones()
+    entradas      = obtener_entradas(restricciones)
+    salidas       = obtener_salidas(restricciones)
+    celdas_rest   = obtener_celdas_restringidas(restricciones)
+
+    print(f"Elementos cargados   : {len(elementos)}")
+    print(f"Restricciones        : {len(restricciones)}")
+    print(f"Entradas             : {len(entradas)}")
+    print(f"Salidas emergencia   : {len(salidas)}")
+
+    (mejor_ind, mejor_apt,
+     hist_mejor, hist_prom, hist_peor,
+     top3) = algoritmo_genetico(elementos, entradas, salidas, celdas_rest)
+
+    print(f"\n★ APTITUD FINAL = {mejor_apt:.6f}")
+    print("\nTOP 3:")
+    for e in top3:
+        print(f"  #{e['rank']} → {e['aptitud']:.6f}")
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(hist_mejor, color='#a855f7', linewidth=2,   label='Mejor aptitud')
+    plt.plot(hist_prom,  color='#ec4899', linewidth=1.5, linestyle='--', label='Promedio')
+    plt.plot(hist_peor,  color='#f97316', linewidth=1.5, linestyle=':',  label='Peor aptitud')
+    plt.title("EVENTOESPACIO v2 — Evolución del Fitness")
+    plt.xlabel("Generación"); plt.ylabel("Aptitud (0-1)"); plt.ylim(0, 1)
+    plt.legend(); plt.grid(True, alpha=0.3); plt.tight_layout()
+    plt.savefig("evolucion_fitness_v2.png", dpi=150)
+    plt.show()

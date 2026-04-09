@@ -1,4 +1,3 @@
-//
 id,nombre,tipo,ancho,alto,prioridad,requires_access
 1,Escenario Principal,escenario,14,10,5,True
 2,Escenario Secundario,escenario,10,7,4,True

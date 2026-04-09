@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import traceback
+# Importamos la configuración desde tu algoritmo
 from eventoespacio_ag import run_ag, AG_CONFIG
 
 app = Flask(__name__)
@@ -30,15 +31,19 @@ DATASETS = {
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # PASO CLAVE: Le enviamos AG_CONFIG al HTML (Jinja2) para no tener datos hardcodeados
+    return render_template("index.html", config=AG_CONFIG)
 
 @app.route("/api/run", methods=["POST"])
 def api_run():
     data = request.get_json()
 
+    # Recibimos el tamaño desde el frontend
     tamano       = data.get("tamano", "chico")
-    generaciones = int(data.get("generaciones", 200))
-    poblacion    = int(data.get("poblacion", 80))
+    
+    # Si el frontend nos manda generaciones/población, las usamos. Si no, usamos las de AG_CONFIG
+    generaciones = int(data.get("generaciones", AG_CONFIG.get("GENERACIONES", 200)))
+    poblacion    = int(data.get("poblacion", AG_CONFIG.get("POBLACION", 80)))
 
     if tamano not in DATASETS:
         return jsonify({"ok": False, "error": f"Tamaño inválido: {tamano}"}), 400
@@ -53,7 +58,8 @@ def api_run():
                 "error": f"Archivo no encontrado: {ruta}"
             }), 500
 
-    config = {
+    # Sobreescribimos la configuración por defecto con lo que puso el usuario en la interfaz
+    config_actualizada = {
         **AG_CONFIG,
         "GENERACIONES": generaciones,
         "POBLACION":    poblacion,
@@ -65,7 +71,7 @@ def api_run():
             venue_alto=ds["venue_alto"],
             ruta_elementos=ds["elementos"],
             ruta_restricciones=ds["restricciones"],
-            config=config,
+            config=config_actualizada,
         )
         return jsonify({"ok": True, "data": resultado})
 
