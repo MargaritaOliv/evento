@@ -9,10 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
   <style>
-  /* ================================================================
-     EVENTOESPACIO v2 — Estilos completos (self-contained)
-     Paleta: morado · rosa · celeste / dark mode
-  ================================================================ */
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
   :root {
@@ -57,9 +53,9 @@
     pointer-events:none; z-index:0;
   }
 
-  /* ── Header ── */
   header {
-    position:sticky; top:0; z-index:100;
+    position:sticky; top:0;
+    z-index:100;
     display:flex; align-items:center; justify-content:space-between;
     padding:16px 32px;
     background:rgba(13,11,20,.88);
@@ -88,10 +84,8 @@
     color:var(--muted); letter-spacing:1px;
   }
 
-  /* ── Main ── */
   main { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:32px 24px 80px; }
 
-  /* ── Section label ── */
   .section-label {
     font-family:var(--font-mono); font-size:10px; letter-spacing:3px;
     color:var(--muted); text-transform:uppercase;
@@ -99,7 +93,6 @@
     border-bottom:1px solid var(--border);
   }
 
-  /* ── Config panel ── */
   .config-panel {
     background:var(--surface); border:1px solid var(--border);
     padding:28px 28px 24px; margin-bottom:24px;
@@ -123,7 +116,6 @@
   .input-field input:focus, .input-field select:focus { border-color:var(--purple); }
   .input-sep { color:var(--muted); font-size:16px; padding-top:16px; }
 
-  /* Pesos fitness */
   .config-weights { grid-column:1/-1; }
   .weights-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
   @media(max-width:600px){ .weights-grid { grid-template-columns:repeat(2,1fr); } }
@@ -138,15 +130,13 @@
     font-weight:500; width:100%; outline:none; padding:2px 0;
   }
   #pesoTotal {
-    font-family:var(--font-mono); font-size:11px;
-    padding:6px 10px; background:var(--surface2);
+    font-family:var(--font-mono); font-size:11px; padding:6px 10px; background:var(--surface2);
     border:1px solid var(--border); color:var(--muted);
     margin-top:8px; text-align:right;
   }
   #pesoTotal.ok  { color:var(--green); border-color:var(--green); }
   #pesoTotal.err { color:#f85149;      border-color:#f85149; }
 
-  /* CSV upload */
   .csv-group { grid-column:1/-1; }
   .csv-row { display:flex; gap:16px; flex-wrap:wrap; }
   .csv-field { flex:1; min-width:200px; display:flex; flex-direction:column; gap:6px; }
@@ -157,7 +147,6 @@
     padding:7px 10px; cursor:pointer; width:100%;
   }
 
-  /* Run button */
   .run-btn {
     display:flex; align-items:center; justify-content:center; gap:10px;
     width:100%; padding:14px;
@@ -176,7 +165,6 @@
   .run-icon.spin { display:inline-block; animation:spin 1s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
-  /* ── Status bar ── */
   .status-bar {
     display:none; align-items:center; gap:14px;
     background:var(--surface); border:1px solid var(--border);
@@ -184,15 +172,12 @@
     font-family:var(--font-mono); font-size:12px; color:var(--muted);
   }
   .status-spinner {
-    width:16px; height:16px;
-    border:2px solid var(--border2); border-top-color:var(--purple);
+    width:16px; height:16px; border:2px solid var(--border2); border-top-color:var(--purple);
     border-radius:50%; animation:spin 0.8s linear infinite; flex-shrink:0;
   }
 
-  /* ── Results ── */
   .results-section { display:none; }
 
-  /* Tabs */
   .tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
   .tab {
     flex:1; min-width:80px; padding:12px 16px;
@@ -207,11 +192,9 @@
   .tab-rank { display:block; font-size:16px; font-weight:700; font-family:var(--font-ui); }
   .tab-score { display:block; font-size:10px; margin-top:3px; }
 
-  /* Result layout */
   .result-layout { display:grid; grid-template-columns:1fr 280px; gap:20px; }
   @media(max-width:800px){ .result-layout { grid-template-columns:1fr; } }
 
-  /* Map */
   .map-wrapper { background:var(--surface); border:1px solid var(--border); padding:16px; }
   .map-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .map-header span { font-family:var(--font-mono); font-size:11px; }
@@ -220,12 +203,10 @@
   .canvas-container { width:100%; overflow:auto; }
   .canvas-container svg { display:block; max-width:100%; }
 
-  /* Leyenda */
   .legend { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
   .legend-item { display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10px; color:var(--muted); }
   .legend-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
 
-  /* Metrics panel */
   .metrics-panel {
     background:var(--surface); border:1px solid var(--border);
     padding:18px; display:flex; flex-direction:column; gap:14px;
@@ -258,14 +239,12 @@
   .elem-size { color:var(--muted); }
   .elem-rot  { color:var(--cyan); font-size:9px; }
 
-  /* ── Chart ── */
   .chart-wrapper {
     background:var(--surface); border:1px solid var(--border);
     padding:16px; margin-top:20px;
   }
   .chart-wrapper svg { display:block; width:100%; }
 
-  /* ── Dataset cards ── */
   .dataset-cards { display:flex; gap:10px; flex-wrap:wrap; }
   .dataset-card {
     flex:1; min-width:110px; padding:14px 12px;
@@ -282,7 +261,6 @@
   .ds-name { font-size:13px; font-weight:700; color:var(--text); }
   .ds-desc { font-family:var(--font-mono); font-size:9px; color:var(--muted); }
 
-  /* ── Error ── */
   .error-bar {
     display:none; align-items:center; gap:10px;
     background:rgba(248,81,73,.12); border:1px solid #f85149;
@@ -293,7 +271,6 @@
 </head>
 <body>
 
-<!-- ── HEADER ─────────────────────────────────────────── -->
 <header>
   <div class="logo">
     <div class="logo-icon">◈</div>
@@ -305,16 +282,11 @@
   <div class="header-badge">AG · v2.0</div>
 </header>
 
-<!-- ── MAIN ───────────────────────────────────────────── -->
 <main>
-
-  <!-- 01 · CONFIGURACIÓN -->
   <section class="config-panel">
     <div class="section-label">01 — Configuración del AG</div>
 
     <div class="config-grid">
-
-      <!-- Dataset selector -->
       <div class="config-group">
         <label>Tamaño del evento</label>
         <div class="dataset-cards" id="datasetCards">
@@ -337,7 +309,6 @@
         <input type="hidden" id="tamano" value="chico" />
       </div>
 
-      <!-- AG params -->
       <div class="config-group">
         <label>Parámetros del AG</label>
         <div class="input-row">
@@ -366,7 +337,6 @@
         </div>
       </div>
 
-      <!-- Pesos fitness -->
       <div class="config-group config-weights">
         <label>Pesos de la función fitness (deben sumar 1.0)</label>
         <div class="weights-grid">
@@ -390,9 +360,7 @@
         <div id="pesoTotal" class="ok">Σ pesos = 1.00 ✓</div>
       </div>
 
-
-
-    </div><!-- /config-grid -->
+    </div>
 
     <button class="run-btn" id="runBtn" onclick="ejecutarAG()">
       <span class="run-icon">▶</span>
@@ -400,18 +368,15 @@
     </button>
   </section>
 
-  <!-- Status -->
   <div class="status-bar" id="statusBar">
     <div class="status-spinner"></div>
     <span id="statusText">Inicializando…</span>
   </div>
 
-  <!-- Error -->
   <div class="error-bar" id="errorBar">
     <span>⚠</span><span id="errorText"></span>
   </div>
 
-  <!-- 02 · RESULTADOS -->
   <section class="results-section" id="resultsSection">
 
     <div class="section-label">02 — Top 3 distribuciones</div>
@@ -432,8 +397,6 @@
     </div>
 
     <div class="result-layout">
-
-      <!-- Mapa SVG -->
       <div class="map-wrapper">
         <div class="map-header">
           <span id="mapTitle">Distribución #1</span>
@@ -445,7 +408,6 @@
         <div class="legend" id="legend"></div>
       </div>
 
-      <!-- Panel métricas -->
       <div class="metrics-panel">
         <div class="metrics-header">Métricas del individuo</div>
 
@@ -496,10 +458,8 @@
         <div class="elementos-list-header">Elementos colocados</div>
         <div class="elementos-list" id="elementosList"></div>
       </div>
+    </div>
 
-    </div><!-- /result-layout -->
-
-    <!-- 03 · Gráfica -->
     <div class="section-label" style="margin-top:2.5rem">03 — Evolución del fitness</div>
     <div class="chart-wrapper">
       <svg id="fitnessChart" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -510,21 +470,6 @@
 </main>
 
 <script>
-// ================================================================
-//  EVENTOESPACIO v2 — Frontend JS
-//  Conecta con app.py → /ejecutar (multipart/form-data)
-//  Campos enviados: ancho, alto, tam_poblacion, p_cruza,
-//                   p_mut_ind, p_mut_gen, generaciones,
-//                   wE, wF, wC, wP,
-//                   elementos_csv (file, opcional),
-//                   restricciones_csv (file, opcional)
-//  Campos recibidos: aptitud, O1, O2, O3, O4,
-//                    factor_superposicion,
-//                    hist_mejor, hist_promedio, hist_peor,
-//                    top3, tabla, restricciones, ancho, alto
-// ================================================================
-
-// ── Colores por tipo de elemento ────────────────────────────────
 const COLORES = {
   escenario:          "#a855f7",
   stand:              "#ec4899",
@@ -544,18 +489,15 @@ function colorPara(tipo) {
   return COLORES[tipo] || COLORES.default;
 }
 
-// ── Estado global ────────────────────────────────────────────────
 let resultadoGlobal = null;
 let tabActiva = 0;
 
-// ── Selector de dataset ──────────────────────────────────────────
 function seleccionarDataset(tamano, el) {
   document.querySelectorAll(".dataset-card").forEach(c => c.classList.remove("active"));
   el.classList.add("active");
   document.getElementById("tamano").value = tamano;
 }
 
-// ── Suma pesos ───────────────────────────────────────────────────
 function actualizarSumaPesos() {
   const s = ["wE","wF","wC","wP"].reduce((a,id)=>a+parseFloat(document.getElementById(id).value||0),0);
   const el = document.getElementById("pesoTotal");
@@ -563,7 +505,6 @@ function actualizarSumaPesos() {
   el.className   = Math.abs(s-1)<0.01 ? "ok" : "err";
 }
 
-// ── Ejecutar AG ──────────────────────────────────────────────────
 async function ejecutarAG() {
   const btn = document.getElementById("runBtn");
   btn.disabled = true;
@@ -583,11 +524,11 @@ async function ejecutarAG() {
     "Convergiendo hacia óptimos…",
     "Extrayendo top 3…"
   ];
+
   let mi = 0;
   const statusText = document.getElementById("statusText");
   const interval = setInterval(()=>{ statusText.textContent = mensajes[mi++ % mensajes.length]; }, 900);
 
-  // Payload JSON → app.py /ejecutar
   const payload = {
     tamano:        document.getElementById("tamano").value,
     tam_poblacion: parseInt(document.getElementById("tam_poblacion").value),
@@ -607,6 +548,7 @@ async function ejecutarAG() {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload)
     });
+
     const data = await res.json();
     clearInterval(interval);
     document.getElementById("statusBar").style.display = "none";
@@ -627,52 +569,43 @@ async function ejecutarAG() {
   }
 }
 
-// ── Mostrar resultados ───────────────────────────────────────────
 function mostrarResultados() {
   const d = resultadoGlobal;
 
-  // Los top3 vienen de d.top3 (lista de {rank, aptitud, tabla})
-  // Las métricas del individuo #1 vienen de d.O1…O4, d.factor_superposicion
-  // Construimos los datos por tab:
-  //   tab 0 → mejor individuo (d.tabla + métricas globales)
-  //   tab 1,2 → d.top3[1], d.top3[2] (sin métricas detalladas)
-
-  // Scores en tabs
   d.top3.forEach((ind, i) => {
     document.getElementById(`score${i}`).textContent = ind.aptitud.toFixed(4);
   });
 
   document.getElementById("resultsSection").style.display = "block";
   selectTab(0);
-
-  // Gráfica con los 3 historiales
   dibujarGraficaEvolucion(d.hist_mejor, d.hist_promedio, d.hist_peor);
 }
 
-// ── Seleccionar tab ──────────────────────────────────────────────
 function selectTab(idx) {
   tabActiva = idx;
   document.querySelectorAll(".tab").forEach((t, i) => t.classList.toggle("active", i===idx));
-
+  
   const d   = resultadoGlobal;
   const ind = d.top3[idx];
-
-  // Para el tab 0 usamos las métricas detalladas que devuelve el backend
-  const metricas = idx === 0
-    ? { O1: d.O1, O2: d.O2, O3: d.O3, O4: d.O4,
-        aptitud: d.aptitud, factor: d.factor_superposicion }
-    : { O1: null, O2: null, O3: null, O4: null,
-        aptitud: ind.aptitud, factor: null };
-
+  
+  const metricas = {
+    O1: ind.O1,
+    O2: ind.O2,
+    O3: ind.O3,
+    O4: ind.O4,
+    aptitud: ind.aptitud,
+    factor: ind.factor_superposicion
+  };
+  
   renderMapa(ind.tabla, d.restricciones, d.ancho, d.alto);
   renderMetricas(metricas, ind.tabla);
 }
 
-// ── Renderizar mapa SVG ──────────────────────────────────────────
 function renderMapa(tabla, restricciones, W, H) {
   const svg    = document.getElementById("venueMap");
   const MAX_W  = svg.parentElement.clientWidth || 600;
   const CELL   = Math.max(4, Math.floor(MAX_W / W));
+
   const svgW   = W * CELL;
   const svgH   = H * CELL;
 
@@ -687,16 +620,12 @@ function renderMapa(tabla, restricciones, W, H) {
     return el;
   };
 
-  // Fondo
   svg.appendChild(s("rect", {x:0,y:0,width:svgW,height:svgH,fill:"#0d1117"}));
 
-  // Grid ligera
   for (let x=0; x<=W; x++) svg.appendChild(s("line",{x1:x*CELL,y1:0,x2:x*CELL,y2:svgH,stroke:x%5===0?"#1e2530":"#161b22","stroke-width":"0.5"}));
   for (let y=0; y<=H; y++) svg.appendChild(s("line",{x1:0,y1:y*CELL,x2:svgW,y2:y*CELL,stroke:y%5===0?"#1e2530":"#161b22","stroke-width":"0.5"}));
 
-  // Restricciones
   (restricciones||[]).forEach(r => {
-    // Soporte formato antiguo (x,y punto) y nuevo (x1,y1,x2,y2 rango)
     const x1 = r.x1 != null ? r.x1 : r.x;
     const y1 = r.y1 != null ? r.y1 : r.y;
     const x2 = r.x2 != null ? r.x2 : r.x + 1;
@@ -724,7 +653,6 @@ function renderMapa(tabla, restricciones, W, H) {
     }
   });
 
-  // Elementos
   tabla.forEach(e => {
     const color = colorPara(e.tipo);
     const ex = e.x*CELL, ey = e.y*CELL;
@@ -739,20 +667,17 @@ function renderMapa(tabla, restricciones, W, H) {
       const lbl = s("text",{x:ex+ew/2,y:ey+eh/2,"text-anchor":"middle","dominant-baseline":"middle","font-size":fs,"fill":"white","font-family":"DM Mono","font-weight":"500"});
       lbl.textContent = label; svg.appendChild(lbl);
     }
-    // Indicador de rotación (pequeña "R" en esquina)
     if (e.rotado && ew >= CELL*1.5) {
       const rl = s("text",{x:ex+ew-CELL*.3,y:ey+CELL*.55,"font-size":Math.max(CELL*.4,4),"fill":"rgba(103,232,249,.9)","font-family":"DM Mono"});
       rl.textContent="↺"; svg.appendChild(rl);
     }
   });
 
-  // Borde del venue
   svg.appendChild(s("rect",{x:.5,y:.5,width:svgW-1,height:svgH-1,fill:"none",stroke:"#58a6ff","stroke-width":"1.5"}));
 
   document.getElementById("mapTitle").textContent = `Distribución #${tabActiva+1}`;
   document.getElementById("mapDims").textContent  = `${W} × ${H} celdas`;
 
-  // Leyenda
   const tipos = [...new Set(tabla.map(e=>e.tipo))];
   document.getElementById("legend").innerHTML =
     tipos.map(t=>`<div class="legend-item"><span class="legend-dot" style="background:${colorPara(t)}"></span><span>${t.replace(/_/g," ")}</span></div>`).join("") +
@@ -762,7 +687,6 @@ function renderMapa(tabla, restricciones, W, H) {
      <div class="legend-item"><span class="legend-dot" style="background:#f0883e"></span><span>salida emergencia</span></div>`;
 }
 
-// ── Renderizar métricas ──────────────────────────────────────────
 function renderMetricas(m, tabla) {
   const set = (id, val, barId) => {
     document.getElementById(id).textContent  = val != null ? val.toFixed(4) : "—";
@@ -772,10 +696,10 @@ function renderMetricas(m, tabla) {
   set("valF", m.O2, "barF");
   set("valC", m.O3, "barC");
   set("valP", m.O4, "barP");
+
   document.getElementById("fitTotal").textContent = m.aptitud.toFixed(6);
   document.getElementById("penVal").textContent   = m.factor != null ? m.factor.toFixed(4) : "—";
 
-  // Lista de elementos
   document.getElementById("elementosList").innerHTML = tabla.map(e=>`
     <div class="elem-row">
       <span class="elem-dot" style="background:${colorPara(e.tipo)}"></span>
@@ -786,15 +710,16 @@ function renderMetricas(m, tabla) {
     </div>`).join("");
 }
 
-// ── Gráfica evolutiva SVG — 3 líneas ────────────────────────────
 function dibujarGraficaEvolucion(histMejor, histProm, histPeor) {
   const container = document.getElementById("fitnessChart").parentElement;
   const W   = container.clientWidth || 800;
   const H   = 230;
   const PAD = {top:22, right:28, bottom:38, left:46};
+
   const IW  = W - PAD.left - PAD.right;
   const IH  = H - PAD.top  - PAD.bottom;
   const n   = histMejor.length;
+
   if (n < 2) return;
 
   const svg = document.getElementById("fitnessChart");
@@ -814,10 +739,10 @@ function dibujarGraficaEvolucion(histMejor, histProm, histPeor) {
 
   const minY = Math.min(...histPeor) * 0.95;
   const maxY = Math.min(Math.max(...histMejor) * 1.02, 1.0);
+
   const px   = i => PAD.left + (i/(n-1))*IW;
   const py   = v => PAD.top  + IH - ((v - minY)/(maxY - minY))*IH;
 
-  // Grid horizontal
   [0, .25, .5, .75, 1].forEach(t => {
     const y = py(minY + (maxY-minY)*t);
     svg.appendChild(s("line",{x1:PAD.left,y1:y,x2:PAD.left+IW,y2:y,stroke:"#1e2530","stroke-width":"0.8","stroke-dasharray":"3,4"}));
@@ -831,43 +756,37 @@ function dibujarGraficaEvolucion(histMejor, histProm, histPeor) {
     svg.appendChild(s("path",attrs));
   };
 
-  // Área bajo la curva de mejores
   const area = histMejor.map((v,i)=>`${i===0?"M":"L"}${px(i)},${py(v)}`).join(" ")
     + ` L${px(n-1)},${PAD.top+IH} L${PAD.left},${PAD.top+IH} Z`;
   svg.appendChild(s("path",{d:area,fill:"#a855f7",opacity:"0.07"}));
 
-  // Línea peor (naranja punteada)
   polyline(histPeor,  "#f97316", "2,4", "1.2");
-  // Línea promedio (verde punteada)
   polyline(histProm,  "#3fb950", "4,4", "1.3");
-  // Línea mejor (azul sólida)
   polyline(histMejor, "#58a6ff", null,  "2");
 
-  // Punto máximo
   const maxV = Math.max(...histMejor);
   const maxI = histMejor.indexOf(maxV);
   svg.appendChild(s("circle",{cx:px(maxI),cy:py(maxV),r:"3.5",fill:"#f0883e"}));
   svg.appendChild(s("text",{x:px(maxI)+7,y:py(maxV)-5,"font-size":"9","fill":"#f0883e","font-family":"DM Mono"}, maxV.toFixed(4)));
 
-  // Ejes
   svg.appendChild(s("line",{x1:PAD.left,y1:PAD.top,x2:PAD.left,y2:PAD.top+IH,stroke:"#30363d","stroke-width":"1"}));
   svg.appendChild(s("line",{x1:PAD.left,y1:PAD.top+IH,x2:PAD.left+IW,y2:PAD.top+IH,stroke:"#30363d","stroke-width":"1"}));
 
-  // Eje X — etiquetas de generación
   [0, Math.floor(n/4), Math.floor(n/2), Math.floor(3*n/4), n-1].forEach(i=>{
     svg.appendChild(s("text",{x:px(i),y:PAD.top+IH+14,"text-anchor":"middle","font-size":"9","fill":"#6e7681","font-family":"DM Mono"}, i));
   });
+
   svg.appendChild(s("text",{x:PAD.left+IW/2,y:H-4,"text-anchor":"middle","font-size":"9","fill":"#6e7681","font-family":"DM Mono"},"Generación"));
 
-  // Leyenda de líneas
   const leyItems = [
     {color:"#58a6ff", label:"Mejor"},
     {color:"#3fb950", label:"Promedio", dash:"4,3"},
     {color:"#f97316", label:"Peor",     dash:"2,4"},
   ];
+
   leyItems.forEach((item,i)=>{
     const lx = PAD.left + IW - 200 + i*68;
-    const ly = PAD.top + 8;
+    const ly = 12; 
     const la = {x1:lx,y1:ly,x2:lx+16,y2:ly,stroke:item.color,"stroke-width":"1.8"};
     if (item.dash) la["stroke-dasharray"] = item.dash;
     svg.appendChild(s("line",la));
@@ -875,7 +794,6 @@ function dibujarGraficaEvolucion(histMejor, histProm, histPeor) {
   });
 }
 
-// Inicializar suma pesos al cargar
 actualizarSumaPesos();
 </script>
 
