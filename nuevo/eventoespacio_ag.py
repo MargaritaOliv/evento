@@ -22,8 +22,8 @@ P_MUT_IND      = 0.30
 P_MUT_GEN      = 0.25
 N_GENERACIONES = 400
 
-ANCHO_GRID = 20
-ALTO_GRID  = 20
+ANCHO_GRID = 50
+ALTO_GRID  = 50
 
 # Pesos de la función fitness (deben sumar 1.0)
 W_DISTRIBUCION  = 0.25   # WE
@@ -378,7 +378,7 @@ def calcular_aptitud(individuo, elementos, entradas, salidas, W=None, H=None,
                      WE=W_DISTRIBUCION, WF=W_FLUJO, WC=W_CONECTIVIDAD, WP=W_PRIORIDAD):
     """
     Aptitud = [(O1·WE) + (O2·WF) + (O3·WC) + (O4·WP)] × Factor_Superposicion
-
+w
     FIX 1: Factor_Superposicion es continuo (0.05 – 1.0), no binario.
            El algoritmo siempre puede distinguir soluciones "más malas"
            de "menos malas", aunque todas se encimen.
